@@ -16,3 +16,9 @@ This is the [standard example Access Point](https://github.com/raspberrypi/pico-
 * added a flash script and Makefile to ease my workflow
 
 
+## Prerequistites
+
+You must have the following:
+
+* Pico C/C++ SDK Installed - [Instructions](https://www.raspberrypi.com/documentation/microcontrollers/c_sdk.html)
+* The PICO_* environment variables set - see the envrc file (set for you if you use direnv)

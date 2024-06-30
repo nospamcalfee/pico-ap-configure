@@ -1,0 +1,6 @@
+PICO_EXTRAS_PATH=/home/gherlein/src/rp2040/pico/pico-extras
+PICO_SDK_PATH=/home/gherlein/src/rp2040/pico/pico-sdk
+PICO_BOARD=pico_w
+PICO_PLAYGROUND_PATH=/home/gherlein/src/rp2040/pico/pico-playground
+PICO_EXAMPLES_PATH=/home/gherlein/src/rp2040/pico/pico-examples
+
