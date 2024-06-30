@@ -4,10 +4,11 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#include <string.h>
-
 #include "pico/cyw43_arch.h"
+#include "pico/multicore.h"
 #include "pico/stdlib.h"
+#include <stdio.h>
+#include <string.h>
 
 #include "lwip/pbuf.h"
 #include "lwip/tcp.h"
@@ -126,6 +127,7 @@ static int test_server_content(const char *request, const char *params,
 
 err_t tcp_server_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p,
                       err_t err) {
+  DEBUG_printf("connection recv\n");
   TCP_CONNECT_STATE_T *con_state = (TCP_CONNECT_STATE_T *)arg;
   if (!p) {
     DEBUG_printf("connection closed\n");
@@ -135,9 +137,9 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p,
   if (p->tot_len > 0) {
     DEBUG_printf("tcp_server_recv %d err %d\n", p->tot_len, err);
 #if 0
-        for (struct pbuf *q = p; q != NULL; q = q->next) {
-            DEBUG_printf("in: %.*s\n", q->len, q->payload);
-        }
+    for (struct pbuf *q = p; q != NULL; q = q->next) {
+      DEBUG_printf("in: %.*s\n", q->len, q->payload);
+    }
 #endif
     // Copy the request into the buffer
     pbuf_copy_partial(p, con_state->headers,
@@ -313,10 +315,10 @@ void key_pressed_func(void *param) {
   }
 }
 
-// #define MULTICORE 1
-#ifdef MULTICORE
 void core1_entry() {
+
   multicore_fifo_push_blocking(FLAG_VALUE);
+
   uint32_t g = multicore_fifo_pop_blocking();
 
   if (g != FLAG_VALUE)
@@ -335,7 +337,6 @@ void core1_entry() {
     printf("Core 1 wakeup\n");
   }
 }
-#endif
 
 int main() {
   stdio_init_all();
@@ -371,7 +372,7 @@ int main() {
                                         &key_pressed_worker);
   stdio_set_chars_available_callback(key_pressed_func, state);
 
-  const char *ap_name = "picow_test";
+  const char *ap_name = "picow_test2";
 #if 1
   const char *password = "password";
 #else
@@ -381,7 +382,7 @@ int main() {
   cyw43_arch_enable_ap_mode(ap_name, password, CYW43_AUTH_WPA2_AES_PSK);
 
   ip4_addr_t mask;
-  IP4_ADDR(ip_2_ip4(&state->gw), 192, 168, 4, 1);
+  IP4_ADDR(ip_2_ip4(&state->gw), 192, 168, 5, 1);
   IP4_ADDR(ip_2_ip4(&mask), 255, 255, 255, 0);
 
   // Start the dhcp server
@@ -393,7 +394,7 @@ int main() {
   dns_server_init(&dns_server, &state->gw);
 
   if (!tcp_server_open(state, ap_name)) {
-    DEBUG_printf("failed to open server\n");
+    DEBUG_printf("failed to start server\n");
     return 1;
   }
 
@@ -402,13 +403,14 @@ int main() {
     // the following #ifdef is only here so this same example can be used in
     // multiple modes; you do not need it in your code
 #if PICO_CYW43_ARCH_POLL
-    // if you are using pico_cyw43_arch_poll, then you must poll periodically
-    // from your main loop (not from a timer interrupt) to check for Wi-Fi
-    // driver or lwIP work that needs to be done.
+    // if you are using pico_cyw43_arch_poll, then you must poll
+    // periodically from your main loop (not from a timer interrupt) to
+    // check for Wi-Fi driver or lwIP work that needs to be done.
     cyw43_arch_poll();
-    // you can poll as often as you like, however if you have nothing else to do
-    // you can choose to sleep until either a specified time, or
-    // cyw43_arch_poll() has work to do:
+    // DEBUG_printf("polling...\n");
+    //  you can poll as often as you like, however if you have nothing else
+    //  to do you can choose to sleep until either a specified time, or
+    //  cyw43_arch_poll() has work to do:
     cyw43_arch_wait_for_work_until(make_timeout_time_ms(1000));
 #else
     // if you are not using pico_cyw43_arch_poll, then Wi-FI driver and lwIP
@@ -417,6 +419,7 @@ int main() {
     sleep_ms(1000);
 #endif
   }
+  DEBUG_printf("shutting down...\n");
   tcp_server_close(state);
   dns_server_deinit(&dns_server);
   dhcp_server_deinit(&dhcp_server);

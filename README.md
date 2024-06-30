@@ -15,6 +15,8 @@ This is the [standard example Access Point](https://github.com/raspberrypi/pico-
 * the second core just blinks the LED - NOTE:  this makes the web page redundant
 * added a flash script and Makefile to ease my workflow
 
+### BROKEN:  multicore breaks this - still sorting out why
+
 
 ## Prerequistites
 
