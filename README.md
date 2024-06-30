@@ -12,7 +12,7 @@ This is the [standard example Access Point](https://github.com/raspberrypi/pico-
 
 * broken out into it's own folder, not built from the example tree
 * includes multicore
-* the second core just blinks the LED
+* the second core just blinks the LED - NOTE:  this makes the web page redundant
 * added a flash script and Makefile to ease my workflow
 
 

@@ -366,7 +366,7 @@ int main() {
                                         &key_pressed_worker);
   stdio_set_chars_available_callback(key_pressed_func, state);
 
-  const char *ap_name = "picow_test";
+  const char *ap_name = "picow_test2";
 #if 1
   const char *password = "password";
 #else
