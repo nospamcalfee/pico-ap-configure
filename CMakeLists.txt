@@ -1,52 +1,69 @@
 cmake_minimum_required(VERSION 3.13)
 
+set(PROGRAM_NAME picow_access_point)
+set(PICO_BOARD pico_w)
+
+if(NOT $ENV{PICO_SDK_PATH})
+#  set(PICO_SDK_PATH ${CMAKE_CURRENT_LIST_DIR}/lib/pico-sdk)
+   message(" you must have pico sdk and environment PICO_SDK_PATH defined")
+endif()
+set(PICO_SDK_PATH $ENV{PICO_SDK_PATH})
+
+message(PICO_SDK_PATH="${PICO_SDK_PATH}")
+
 include(pico_sdk_import.cmake)
 
-project(main)
+project(${PROGRAM_NAME})
 
 # initialize the Raspberry Pi Pico SDK
 pico_sdk_init()
 
-add_executable(picow_access_point_background
+
+message("Running makefsdata python script")
+execute_process(COMMAND
+    python3 makefsdata.py
+    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
+)
+
+add_executable(${PROGRAM_NAME}
         picow_access_point.c
         dhcpserver/dhcpserver.c
         dnsserver/dnsserver.c
+        cgi.c
+        ssi.c
+        post_example.c
         )
 
-target_include_directories(picow_access_point_background PRIVATE
+#target_compile_options(${PROGRAM_NAME} PUBLIC -Werror -Wall -Wextra -Wnull-dereference -Wno-unused-parameter -Wno-null-dereference -ggdb3 -O3)
+
+target_compile_options(${PROGRAM_NAME} PUBLIC -ggdb3 -O0)
+
+string(APPEND CMAKE_EXE_LINKER_FLAGS "-Wl,--print-memory-usage")
+
+target_include_directories(${PROGRAM_NAME} PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}
         ${CMAKE_CURRENT_LIST_DIR}/.. # for our common lwipopts
         ${CMAKE_CURRENT_LIST_DIR}/dhcpserver
         ${CMAKE_CURRENT_LIST_DIR}/dnsserver
         )
 
-target_link_libraries(picow_access_point_background
+#pass some cmake variables to the program, warning some may be case sensitive.
+target_compile_definitions(${PROGRAM_NAME} PRIVATE
+    WIFI_SSID=\"${WIFI_SSID}\"
+    WIFI_PASSWORD=\"${WIFI_PASSWORD}\"
+    HOSTNAME=\"${HOSTNAME}\"
+    )
+
+target_link_libraries(${PROGRAM_NAME}
         pico_cyw43_arch_lwip_threadsafe_background
         pico_stdlib
-        pico_multicore
+        pico_lwip_http
+        hardware_adc
+        pico_rand
         )
 
-pico_add_extra_outputs(picow_access_point_background)
+pico_add_extra_outputs(${PROGRAM_NAME})
 
-add_executable(picow_access_point_poll
-        picow_access_point.c
-        dhcpserver/dhcpserver.c
-        dnsserver/dnsserver.c
-        )
-target_include_directories(picow_access_point_poll PRIVATE
-        ${CMAKE_CURRENT_LIST_DIR}
-        ${CMAKE_CURRENT_LIST_DIR}/.. # for our common lwipopts
-        ${CMAKE_CURRENT_LIST_DIR}/dhcpserver
-        ${CMAKE_CURRENT_LIST_DIR}/dnsserver
-        )
-target_link_libraries(picow_access_point_poll
-        pico_cyw43_arch_lwip_poll
-        pico_stdlib
-        pico_multicore
-        )
-pico_add_extra_outputs(picow_access_point_poll)
 
-pico_enable_stdio_usb(picow_access_point_background 1)
-pico_enable_stdio_uart(picow_access_point_background 1)
-pico_enable_stdio_usb(picow_access_point_poll 1)
-pico_enable_stdio_uart(picow_access_point_poll 1)
+pico_enable_stdio_usb(${PROGRAM_NAME} FALSE)
+pico_enable_stdio_uart(${PROGRAM_NAME} TRUE)
