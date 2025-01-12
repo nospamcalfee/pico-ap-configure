@@ -31,7 +31,7 @@ add_executable(${PROGRAM_NAME}
         dnsserver/dnsserver.c
         cgi.c
         ssi.c
-        post_example.c
+        ap_post_handler.c
         )
 
 #target_compile_options(${PROGRAM_NAME} PUBLIC -Werror -Wall -Wextra -Wnull-dereference -Wno-unused-parameter -Wno-null-dereference -ggdb3 -O3)
