@@ -1,26 +1,69 @@
-# Test Raspberry Pi Pico W (RP2040) Access Point
+# Test Raspberry Pi Pico W (RP2040) Access Point To application
 
-Why?  Just learning at this point.
+I started with this: https://github.com/gherlein/pico-ap-c-test/blob/main/README.md
 
-## Why the Pico W?
+I am trying to build a pico-w IOT device. One of the biggest problems is
+initializing a IOT system in a random wifi environment. So my first thought
+was to do a bluetooth interface to set my ssid/password/ip/ipmask and then
+use my local wifi. I implemented a standalone bluetooth project here:
+https://github.com/nospamcalfee/spp_in_out But the downsides is apparently
+apple ios doesn't respond to serial protocol bluetooth (rumor, I have not
+tried this), and it uses lots of flash - 1/4 total which is not available for
+the final app.
 
-Dual core 133MHz controller with plenty of flash and ram, and an onboard WiFi chip?  For $6 USD? What's not to love?
+I did find that lwip would support mdns, which will make dhcp assigned ip
+addresses easier to find. See:
+https://github.com/nospamcalfee/picow_mdns_webserver for a minimal example.
+
+
+The first step was to do a generic, small footprint, target somewhat
+independent (easily ported?), flash file system handler. See
+https://github.com/nospamcalfee/ringbuffer
+
+Next steps are initing a system for ssid/password/ip/mask. That is this
+project.
 
 ## What this example does
 
-This is the [standard example Access Point](https://github.com/raspberrypi/pico-examples/tree/master/pico_w/wifi/access_point) except for the following:
+First the pico-w starts up as an access point so a cellphone or pc can join
+the pico-w network. Once this happens the user can use a browser to connect
+to the pico-w ap website at default 192.168.4.1 and then the user can set
+ssid/password and optionally fixed-ip and fixed-netmask.
 
-* broken out into it's own folder, not built from the example tree
-* includes multicore
-* the second core just blinks the LED - NOTE:  this makes the web page redundant
-* added a flash script and Makefile to ease my workflow
+I took the gherlein app and made it standalone. Then expanded to include
+entering SSID and password and optional IP and Mask. Then I added POST
+processing which I needed for my app, and is already needed for the AP
+ssid etc entry anyway.
 
-### BROKEN:  multicore breaks this - still sorting out why
+The cgi POST processing is already in the sdk, but the post_example.c is
+pretty vague. The prime example in this project is how POST works and how an
+AP works.
 
+### Tricks to use CGI-POST handling
 
-## Prerequistites
+LWIP is very simple minded. The complication is that your html must call the
+correct cgi entry for the post server. Then the post handler must know what
+is passed by the html such as ssid or ip etc.
 
-You must have the following:
+CGI GET handling is already handled internal to the httpd.c. You must add the
+POST handling at the lowest level.
 
-* Pico C/C++ SDK Installed - [Instructions](https://www.raspberrypi.com/documentation/microcontrollers/c_sdk.html)
-* The PICO_* environment variables set - see the envrc file (set for you if you use direnv)
+## Build and Install
+
+This build assumes you have the pico-sdk installed and have defined in your
+environment PICO_SDK_PATH. This package works as a native Linux shell build,
+but should be easy to people who wish to further complicate the build using a
+ide environment.
+
+There is no requirement for any pico-examples source code (I hope)
+
+```bash
+cd yourprojectdirectory
+mkdir build; cd build
+cmake  -DWIFI_SSID="yourwifi" -DWIFI_PASSWORD="1234567890" -DHOSTNAME="test" ..
+make
+```
+
+Once built, the `picow_access_point.uf2` file can be dragged and dropped onto your
+Raspberry Pi Pico W to install and run the example.
+
