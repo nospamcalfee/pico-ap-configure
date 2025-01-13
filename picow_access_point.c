@@ -7,8 +7,11 @@
 #include "cgi.h"
 #include "dhcpserver.h"
 #include "dnsserver.h"
+//void mdns_example_init(void);
+//WIFI Credentials - passed from cmake command, later maybe overwritten
+char wifi_ssid[] = WIFI_SSID;
+char wifi_password[] = WIFI_PASSWORD;
 
-// void mdns_example_init(void);
 
 void set_host_name(const char*hostname)
 {
@@ -73,7 +76,7 @@ void be_access_point() {
     // tcp_server_close(state);
     dns_server_deinit(&dns_server);
     dhcp_server_deinit(&dhcp_server);
-
+    cyw43_arch_disable_ap_mode();
 }
 int main() {
     stdio_init_all();
@@ -89,7 +92,7 @@ int main() {
 
     cyw43_arch_enable_sta_mode();
     // Connect to the WiFI network - loop until connected
-    while(cyw43_arch_wifi_connect_timeout_ms(WIFI_SSID, WIFI_PASSWORD, CYW43_AUTH_WPA2_AES_PSK, 30000) != 0){
+    while(cyw43_arch_wifi_connect_timeout_ms(wifi_ssid, wifi_password, CYW43_AUTH_WPA2_AES_PSK, 30000) != 0){
         printf("failed to connect...\n");
         be_access_point();
     }

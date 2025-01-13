@@ -45,11 +45,6 @@
 #include <string.h>
 
 /** define LWIP_HTTPD_EXAMPLE_GENERATEDFILES to 1 to enable this file system */
-#ifndef LWIP_HTTPD_EXAMPLE_SIMPLEPOST
-#define LWIP_HTTPD_EXAMPLE_SIMPLEPOST 1
-#endif
-
-#if LWIP_HTTPD_EXAMPLE_SIMPLEPOST
 
 #if !LWIP_HTTPD_SUPPORT_POST
 #error This needs LWIP_HTTPD_SUPPORT_POST
@@ -59,7 +54,6 @@
 
 static void *current_connection;
 static void *valid_connection;
-static char last_user[USER_PASS_BUFSIZE];
 
 err_t
 httpd_post_begin(void *connection, const char *uri, const char *http_request,
@@ -71,7 +65,7 @@ httpd_post_begin(void *connection, const char *uri, const char *http_request,
   LWIP_UNUSED_ARG(http_request_len);
   LWIP_UNUSED_ARG(content_len);
   LWIP_UNUSED_ARG(post_auto_wnd);
-  if (!memcmp(uri, "/login.cgi", 10)) {
+  if (!memcmp(uri, "/configure", 10)) {
     if (current_connection != connection) {
       current_connection = connection;
       valid_connection = NULL;
@@ -96,7 +90,7 @@ httpd_post_receive_data(void *connection, struct pbuf *p)
   LWIP_ASSERT("NULL pbuf", p != NULL);
 
   if (current_connection == connection) {
-    u16_t token_user = pbuf_memfind(p, "user=", 5, 0);
+    u16_t token_user = pbuf_memfind(p, "ssid=", 5, 0);
     u16_t token_pass = pbuf_memfind(p, "pass=", 5, 0);
     if ((token_user != 0xFFFF) && (token_pass != 0xFFFF)) {
       u16_t value_user = token_user + 5;
@@ -104,7 +98,7 @@ httpd_post_receive_data(void *connection, struct pbuf *p)
       u16_t len_user = 0;
       u16_t len_pass = 0;
       u16_t tmp;
-      /* find user len */
+      /* find ssid len */
       tmp = pbuf_memfind(p, "&", 1, value_user);
       if (tmp != 0xFFFF) {
         len_user = tmp - value_user;
@@ -123,15 +117,14 @@ httpd_post_receive_data(void *connection, struct pbuf *p)
         /* provide contiguous storage if p is a chained pbuf */
         char buf_user[USER_PASS_BUFSIZE];
         char buf_pass[USER_PASS_BUFSIZE];
-        char *user = (char *)pbuf_get_contiguous(p, buf_user, sizeof(buf_user), len_user, value_user);
+        char *ssid = (char *)pbuf_get_contiguous(p, buf_user, sizeof(buf_user), len_user, value_user);
         char *pass = (char *)pbuf_get_contiguous(p, buf_pass, sizeof(buf_pass), len_pass, value_pass);
-        if (user && pass) {
-          user[len_user] = 0;
+        if (ssid && pass) {
+          ssid[len_user] = 0;
           pass[len_pass] = 0;
-          if (!strcmp(user, "lwip") && !strcmp(pass, "post")) {
-            /* user and password are correct, create a "session" */
+          if (!strcmp(ssid, "lwip") && !strcmp(pass, "post")) {
+            /* ssid and password are correct, create a "session" */
             valid_connection = connection;
-            memcpy(last_user, user, sizeof(last_user));
           }
         }
       }
@@ -163,5 +156,3 @@ httpd_post_finished(void *connection, char *response_uri, u16_t response_uri_len
     valid_connection = NULL;
   }
 }
-
-#endif /* LWIP_HTTPD_EXAMPLE_SIMPLEPOST*/
