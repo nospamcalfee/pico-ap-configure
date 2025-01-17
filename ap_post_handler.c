@@ -40,18 +40,21 @@
 #include "lwip/apps/httpd.h"
 #include "lwip/def.h"
 #include "lwip/mem.h"
-
+#include "ap_post_handler.h"
 #include <stdio.h>
 #include <string.h>
 
-/** define LWIP_HTTPD_EXAMPLE_GENERATEDFILES to 1 to enable this file system */
+/** define LWIP_HTTPD_EXAMPLE_GENERATEDFILES to 1 to enable this file system ?? what*/
 
 #if !LWIP_HTTPD_SUPPORT_POST
 #error This needs LWIP_HTTPD_SUPPORT_POST
 #endif
 
-#define USER_PASS_BUFSIZE 16
+char wifi_ssid[LWIP_POST_BUFSIZE];
+char wifi_password[LWIP_POST_BUFSIZE];
+int config_changed; //set to zero, watch for non-zero from POST handler
 
+//fixme this strange racy connection stuff needs to be figured out for the ap
 static void *current_connection;
 static void *valid_connection;
 
@@ -69,8 +72,8 @@ httpd_post_begin(void *connection, const char *uri, const char *http_request,
     if (current_connection != connection) {
       current_connection = connection;
       valid_connection = NULL;
-      /* default page is "login failed" */
-      snprintf(response_uri, response_uri_len, "/loginfail.html");
+      /* default page */
+      snprintf(response_uri, response_uri_len, "/page2.shtml");
       /* e.g. for large uploads to slow flash over a fast connection, you should
          manually update the rx window. That way, a sender can only send a full
          tcp window at a time. If this is required, set 'post_aut_wnd' to 0.
@@ -112,20 +115,22 @@ httpd_post_receive_data(void *connection, struct pbuf *p)
       } else {
         len_pass = p->tot_len - value_pass;
       }
-      if ((len_user > 0) && (len_user < USER_PASS_BUFSIZE) &&
-          (len_pass > 0) && (len_pass < USER_PASS_BUFSIZE)) {
+      if ((len_user > 0) && (len_user < LWIP_POST_BUFSIZE) &&
+          (len_pass > 0) && (len_pass < LWIP_POST_BUFSIZE)) {
         /* provide contiguous storage if p is a chained pbuf */
-        char buf_user[USER_PASS_BUFSIZE];
-        char buf_pass[USER_PASS_BUFSIZE];
-        char *ssid = (char *)pbuf_get_contiguous(p, buf_user, sizeof(buf_user), len_user, value_user);
-        char *pass = (char *)pbuf_get_contiguous(p, buf_pass, sizeof(buf_pass), len_pass, value_pass);
-        if (ssid && pass) {
-          ssid[len_user] = 0;
-          pass[len_pass] = 0;
-          if (!strcmp(ssid, "lwip") && !strcmp(pass, "post")) {
+        // char buf_user[LWIP_POST_BUFSIZE];
+        // char buf_pass[LWIP_POST_BUFSIZE];
+        char *w_ssid = (char *)pbuf_get_contiguous(p, wifi_ssid, sizeof(wifi_ssid), len_user, value_user);
+        char *w_pass = (char *)pbuf_get_contiguous(p, wifi_password, sizeof(wifi_password), len_pass, value_pass);
+        if (w_ssid && w_pass) {
+          memcpy(wifi_ssid, w_ssid, len_user); //preserve the new ssid
+          wifi_ssid[len_user] = 0;
+          memcpy(wifi_password, w_pass, len_pass);
+          wifi_password[len_pass] = 0;
+          // if (!strcmp(ssid, "lwip") && !strcmp(pass, "post")) {
             /* ssid and password are correct, create a "session" */
             valid_connection = connection;
-          }
+          // }
         }
       }
     }
@@ -145,11 +150,12 @@ httpd_post_receive_data(void *connection, struct pbuf *p)
 void
 httpd_post_finished(void *connection, char *response_uri, u16_t response_uri_len)
 {
-  /* default page is "login failed" */
+  /* default page  for failure*/
   snprintf(response_uri, response_uri_len, "/page2.shtml");
   if (current_connection == connection) {
     if (valid_connection == connection) {
       /* login succeeded */
+      config_changed = 1; //signal to app that the config has changed, use it
       snprintf(response_uri, response_uri_len, "/index.shtml");
     }
     current_connection = NULL;
