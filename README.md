@@ -39,6 +39,13 @@ The cgi POST processing is already in the sdk, but the post_example.c is
 pretty vague. The prime example in this project is how POST works and how an
 AP works.
 
+To actually create an iot device that needs to start in ap mode, just give an
+invalid WIFI_SSID or WIFI_PASSWORD in the cmake command. Then after the app
+starts and tries to connect for 30 seconds, after timeout it will start the
+access point (by default name picow_test). You can then connect to that ap,
+and then access the html in a browser at 192.168.4.1 and set the actual wifi
+credentials you have locally. That is the point of this, applications.
+
 ### still to be done.
 
 In many iot apps, especially ones that do not use mdns, each device needs to
