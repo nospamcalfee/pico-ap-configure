@@ -1,4 +1,4 @@
-# Test Raspberry Pi Pico W (RP2040) Access Point To application
+# Test Raspberry Pi Pico W (RP2040) Access Point To html application
 
 I started with this: https://github.com/gherlein/pico-ap-c-test/blob/main/README.md
 
