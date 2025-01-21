@@ -127,6 +127,7 @@ httpd_post_receive_data(void *connection, struct pbuf *p)
           wifi_ssid[len_user] = 0;
           memcpy(wifi_password, w_pass, len_pass);
           wifi_password[len_pass] = 0;
+          printf("POST handler wifi_ssid=%s wifi_password=%s\n",wifi_ssid, wifi_password);
           // if (!strcmp(ssid, "lwip") && !strcmp(pass, "post")) {
             /* ssid and password are correct, create a "session" */
             valid_connection = connection;

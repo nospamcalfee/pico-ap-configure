@@ -36,9 +36,9 @@ add_executable(${PROGRAM_NAME}
 
 #target_compile_options(${PROGRAM_NAME} PUBLIC -Werror -Wall -Wextra -Wnull-dereference -Wno-unused-parameter -Wno-null-dereference -ggdb3 -O3)
 
-target_compile_options(${PROGRAM_NAME} PUBLIC -ggdb3 -O0)
+target_compile_options(${PROGRAM_NAME} PUBLIC -ggdb3 -O0 -UNDEBUG)
 
-string(APPEND CMAKE_EXE_LINKER_FLAGS "-Wl,--print-memory-usage")
+string(APPEND CMAKE_EXE_LINKER_FLAGS "-Wl,--print-memory-usage -Wl,--cref")
 
 target_include_directories(${PROGRAM_NAME} PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}
