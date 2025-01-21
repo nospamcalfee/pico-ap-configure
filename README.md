@@ -39,6 +39,13 @@ The cgi POST processing is already in the sdk, but the post_example.c is
 pretty vague. The prime example in this project is how POST works and how an
 AP works.
 
+### still to be done.
+
+In many iot apps, especially ones that do not use mdns, each device needs to
+be configured - setting ssid and password as here, but also setting a fixed
+IP/Mask to be used. I have not done that yet, maybe later, but it is a simple
+extension of this example's POST handling.
+
 ### Tricks to use CGI-POST handling
 
 LWIP is very simple minded. The complication is that your html must call the
@@ -55,12 +62,21 @@ environment PICO_SDK_PATH. This package works as a native Linux shell build,
 but should be easy to people who wish to further complicate the build using a
 ide environment.
 
-There is no requirement for any pico-examples source code (I hope)
+There is no requirement for any pico-examples source code (I hope).
+
+Builds default to release in the pico-sdk - but CMakeLists.txt overrides this,
+and still needs the -DCMAKE_BUILD_TYPE=Debug in the cmake incantation. You
+can change to release by fixing CMakeLists.txt and not doing
+the -DCMAKE_BUILD_TYPE stuff.
+
+To completely rebuild a project including the cmake, before typing the
+cmake ... step first enter "rm CMakeCache.txt", or whatever complications
+your IDE requires.
 
 ```bash
 cd yourprojectdirectory
 mkdir build; cd build
-cmake  -DWIFI_SSID="yourwifi" -DWIFI_PASSWORD="1234567890" -DHOSTNAME="test" ..
+cmake  -DWIFI_SSID="yourwifi" -DWIFI_PASSWORD="1234567890" -DHOSTNAME="test" -DCMAKE_BUILD_TYPE=Debug ..
 make
 ```
 
