@@ -67,10 +67,10 @@ There is no requirement for any pico-examples source code (I hope).
 Builds default to release in the pico-sdk - but CMakeLists.txt overrides this,
 and still needs the -DCMAKE_BUILD_TYPE=Debug in the cmake incantation. You
 can change to release by fixing CMakeLists.txt and not doing
-the -DCMAKE_BUILD_TYPE stuff.
+the ```-DCMAKE_BUILD_TYPE``` stuff.
 
 To completely rebuild a project including the cmake, before typing the
-cmake ... step first enter "rm CMakeCache.txt", or whatever complications
+cmake ... step first enter ```rm CMakeCache.txt``` or whatever complications
 your IDE requires.
 
 ```bash
