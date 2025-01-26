@@ -41,12 +41,14 @@ The cgi POST processing is already in the sdk, but the post_example.c is
 pretty vague. The prime example in this project is how POST works and how an
 AP works.
 
-To actually create an iot device that needs to start in ap mode, just give an
-invalid WIFI_SSID or WIFI_PASSWORD in the cmake command. Then after the app
-starts and tries to connect for 30 seconds, after timeout it will start the
-access point (by default name picow_test). You can then connect to that ap,
-and then access the html in a browser at 192.168.4.1 and set the actual wifi
-credentials you have locally.
+To actually create or test an iot device that needs to start in ap mode, just
+give an invalid WIFI_SSID or WIFI_PASSWORD in the cmake command. Then after
+the app starts and tries to connect for 30 seconds, after timeout it will
+start the access point (by default name ```picow_test```). The default
+network password is cleverly ```password```. Your own local iot network name
+and password can be changed in the function be_access_point. After connecting
+to your ap, you can then access the html in a browser at 192.168.4.1 and set
+the actual wifi network credentials you have locally.
 
 ## new - mdns
 
@@ -108,6 +110,9 @@ cmake  -DWIFI_SSID="yourwifi" -DWIFI_PASSWORD="1234567890" -DHOSTNAME="test" -DC
 make
 ```
 
-Once built, the `picow_access_point.uf2` file can be dragged and dropped onto your
-Raspberry Pi Pico W to install and run the example.
+Once built, the `picow_access_point.uf2` file can be dragged and dropped onto
+your Raspberry Pi Pico W to install and run the example. If your network
+ssid/password are correct, or after you set them in the ap mode, you can then
+access the application html using the mdns name (in this cmake hostname
+example) as test.local
 
