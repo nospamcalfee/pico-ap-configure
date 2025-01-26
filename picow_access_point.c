@@ -8,7 +8,7 @@
 #include "dhcpserver.h"
 #include "dnsserver.h"
 #include "ap_post_handler.h"
-//void mdns_example_init(void);
+void mdns_example_init(void);
 
 void set_host_name(const char*hostname)
 {
@@ -83,18 +83,13 @@ void be_access_point() {
 int main() {
     stdio_init_all();
 
-    // cyw43_arch_init();
-
-    //init with default ssid/password - for now from compile, later from flash
+     //init with default ssid/password - for now from compile, later from flash
     strncpy(wifi_ssid, WIFI_SSID, sizeof(wifi_ssid)-1);
     wifi_ssid[sizeof(wifi_ssid) - 1] = 0;
     strncpy(wifi_password, WIFI_PASSWORD, sizeof(wifi_password)-1);
     wifi_password[sizeof(wifi_password) - 1] = 0;
 
     // be_access_point(); //for test start with ap mode
-    // mdns_resp_init();
-    // mdns_example_init();
-    // cyw43_arch_deinit();
     cyw43_arch_init();
 
     cyw43_arch_enable_sta_mode();
@@ -111,8 +106,8 @@ int main() {
     // Print a success message once connected
     printf("Connected! \n");
 
-    // mdns_resp_add_netif(netif_list, netif_list->hostname);
-    // httpd_init();
+    mdns_example_init();
+
     printf("Http server initialised\n");
 
     printf("Connected: %s picoW IP addr: %s\n", netif_get_hostname(netif_default), ip4addr_ntoa(netif_ip4_addr(netif_list)));

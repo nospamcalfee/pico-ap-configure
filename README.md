@@ -8,8 +8,8 @@ was to do a bluetooth interface to set my ssid/password/ip/ipmask and then
 use my local wifi. I implemented a standalone bluetooth project here:
 https://github.com/nospamcalfee/spp_in_out But the downsides is apparently
 apple ios doesn't respond to serial protocol bluetooth (rumor, I have not
-tried this), and it uses lots of flash - 1/4 total which is not available for
-the final app.
+tried this), and the bluetooth build uses lots of flash - 1/4 total which is
+not available for the final app.
 
 I did find that lwip would support mdns, which will make dhcp assigned ip
 addresses easier to find. See:
@@ -21,17 +21,19 @@ independent (easily ported?), flash file system handler. See
 https://github.com/nospamcalfee/ringbuffer
 
 Next steps are initing a system for ssid/password/ip/mask. That is this
-project.
+project. I also incorporated the mdns stuff in this test.
 
 ## What this example does
 
-First the pico-w starts up as an access point so a cellphone or pc can join
-the pico-w network. Once this happens the user can use a browser to connect
-to the pico-w ap website at default 192.168.4.1 and then the user can set
-ssid/password and optionally fixed-ip and fixed-netmask.
+The app tries to connect to whatever ssid/password you configured in the
+build. If this fails, after 30 seconds, the pico-w starts up as an access
+point so a cellphone or pc can join the pico-w network. Once this happens the
+user can use a browser to connect to the pico-w ap website at default
+192.168.4.1 and then the user can set ssid/password and optionally fixed-ip
+and fixed-netmask.
 
 I took the gherlein app and made it standalone. Then expanded to include
-entering SSID and password and optional IP and Mask. Then I added POST
+entering SSID and password and optional IP and Mask. Then I added cgi POST
 processing which I needed for my app, and is already needed for the AP
 ssid etc entry anyway.
 
@@ -44,7 +46,26 @@ invalid WIFI_SSID or WIFI_PASSWORD in the cmake command. Then after the app
 starts and tries to connect for 30 seconds, after timeout it will start the
 access point (by default name picow_test). You can then connect to that ap,
 and then access the html in a browser at 192.168.4.1 and set the actual wifi
-credentials you have locally. That is the point of this, applications.
+credentials you have locally.
+
+## new - mdns
+
+I extended this example to include mdns (AKA bonjour or avahi). I was
+surprised to see a panic from lwip. Searching around the forums I see
+recommendations to increase lwipopts.h timers. But I already had the
+recommended setting, so I increased it again.
+
+```#define MEMP_NUM_SYS_TIMEOUT            (LWIP_NUM_SYS_TIMEOUT_INTERNAL+4)```
+
+Now it seems to work. I realize that lwip is an external project, but people
+who do api's to be used by others should use the standard embedded C
+programmers rule:
+
+```There are only 3 numbers of interest to embedded programmers, 0, 1 and many ```
+
+This means that arrays should be as few as possible to minimize configuration
+issues like this. Lists should be used for changeable numbers depending on
+configuration and usage.
 
 ### still to be done.
 

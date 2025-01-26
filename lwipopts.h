@@ -89,10 +89,11 @@
 #define LWIP_AUTOIP 1
 #define LWIP_RAND() ((uint32_t)get_rand_32())
 #define LWIP_NUM_NETIF_CLIENT_DATA 1
-#define MEMP_NUM_SYS_TIMEOUT            (LWIP_NUM_SYS_TIMEOUT_INTERNAL+3)
+#define MEMP_NUM_SYS_TIMEOUT            (LWIP_NUM_SYS_TIMEOUT_INTERNAL+4)
 // This section enables HTTPD server with SSI, SGI
 // and tells server which converted HTML files to use
 #define LWIP_HTTPD 1
+#define LWIP_SOCKETS 1
 #define LWIP_HTTPD_SSI 1
 #define LWIP_HTTPD_CGI 1
 #define LWIP_HTTPD_SSI_MULTIPART 0

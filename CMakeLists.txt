@@ -4,7 +4,6 @@ set(PROGRAM_NAME picow_access_point)
 set(PICO_BOARD pico_w)
 
 if(NOT $ENV{PICO_SDK_PATH})
-#  set(PICO_SDK_PATH ${CMAKE_CURRENT_LIST_DIR}/lib/pico-sdk)
    message(" you must have pico sdk and environment PICO_SDK_PATH defined")
 endif()
 set(PICO_SDK_PATH $ENV{PICO_SDK_PATH})
@@ -32,6 +31,10 @@ add_executable(${PROGRAM_NAME}
         cgi.c
         ssi.c
         ap_post_handler.c
+        ${PICO_SDK_PATH}/lib/lwip/src/apps/mdns/mdns.c
+        ${PICO_SDK_PATH}/lib/lwip/src/apps/mdns/mdns_domain.c
+        ${PICO_SDK_PATH}/lib/lwip/src/apps/mdns/mdns_out.c
+        mdns_example.c
         )
 
 #target_compile_options(${PROGRAM_NAME} PUBLIC -Werror -Wall -Wextra -Wnull-dereference -Wno-unused-parameter -Wno-null-dereference -ggdb3 -O3)
