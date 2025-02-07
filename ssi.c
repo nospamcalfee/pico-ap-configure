@@ -1,10 +1,11 @@
 #include "lwip/apps/httpd.h"
 #include "pico/cyw43_arch.h"
 #include "hardware/adc.h"
+#include "ssi.h"
 
 // SSI tags - tag length limited to 8 bytes by default
-const char * ssi_tags[] = {"volt","temp","led", "disp"};
-static uint8_t dispit; //0 is don't display else do display
+const char * ssi_tags[] = {"volt","temp","led", "disp", "ntpready"};
+uint8_t ssi_state; //0 is we don't have ntp time yet.
 
 short unsigned int ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
   size_t printed;
@@ -35,7 +36,7 @@ short unsigned int ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
     break;
   case 3: //disp
     {
-      if (dispit) {
+      if (ssi_state == RUN_STATE_AP) {
         printed = snprintf(pcInsert, iInsertLen, "block");
       } else {
         printed = snprintf(pcInsert, iInsertLen, "none");
@@ -43,6 +44,15 @@ short unsigned int ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
 
     }
   break;
+  case 4: //ntpready
+    {
+      if (ssi_state == RUN_STATE_APP) { //we have ntp time
+        printed = snprintf(pcInsert, iInsertLen, "block");
+      } else {
+        printed = snprintf(pcInsert, iInsertLen, "none");
+      }
+    }
+    break;
   default:
     printed = 0;
     break;
@@ -53,11 +63,11 @@ short unsigned int ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
 
 // Initialise the SSI handler
 //dispset says 1 to display initialize network form or 0 not to display it
-void ssi_init(uint8_t dispset) {
+void ssi_init(enum run_state dispset) {
   // Initialise ADC (internal pin)
   adc_init();
   adc_set_temp_sensor_enabled(true);
   adc_select_input(4);
-  dispit = dispset;
+  ssi_state = dispset;
   http_set_ssi_handler(ssi_handler, ssi_tags, LWIP_ARRAYSIZE(ssi_tags));
 }

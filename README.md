@@ -20,8 +20,10 @@ The first step was to do a generic, small footprint, target somewhat
 independent (easily ported?), flash file system handler. See
 https://github.com/nospamcalfee/ringbuffer
 
-Next steps are initing a system for ssid/password/ip/mask. That is this
+Next step is initing a system for ssid/password/ip/mask. That is this
 project. I also incorporated the mdns stuff in this test.
+https://github.com/nospamcalfee/pico-ap-configure
+
 
 ## What this example does
 
@@ -50,8 +52,6 @@ and password can be changed in the function be_access_point. After connecting
 to your ap, you can then access the html in a browser at 192.168.4.1 and set
 the actual wifi network credentials you have locally.
 
-## new - mdns
-
 I extended this example to include mdns (AKA bonjour or avahi). I was
 surprised to see a panic from lwip. Searching around the forums I see
 recommendations to increase lwipopts.h timers. But I already had the
@@ -76,6 +76,20 @@ be configured - setting ssid and password as here, but also setting a fixed
 IP/Mask to be used. I have not done that yet, maybe later, but it is a simple
 extension of this example's POST handling.
 
+I need better error retries. All comms should be timed out and retried a few
+times. If I don't get ntp time, I cannot do regular sprinkler timing. Problems
+need to be reported on the web page - like no ntp or no comm. The no comm is
+from another timer who cannot communicate, but is on the wifi.
+
+I need watchdog reset - like an arcade game, the only big sin is not not be
+ready for a coin or in this case sprinkler time.
+
+Devices should periodically check if they have the latest schedule and are out
+of date to a comm error or power was off etc.
+
+Need to give up on being an ap if no connection, and so retry the wifi
+connection - so temporary AP outages after a power fail will recover.
+
 ### Tricks to use CGI-POST handling
 
 LWIP is very simple minded. The complication is that your html must call the
@@ -99,9 +113,12 @@ and still needs the -DCMAKE_BUILD_TYPE=Debug in the cmake incantation. You
 can change to release by fixing CMakeLists.txt and not doing
 the ```-DCMAKE_BUILD_TYPE``` stuff.
 
-To completely rebuild a project including the cmake, before typing the
-cmake ... step first enter ```rm CMakeCache.txt``` or whatever complications
-your IDE requires.
+This code only builds the website when cmake runs. Code changes do not require
+it, just run make. Someone may know how to do this correctly, where make runs
+the makefsdata.py whenever a file in html_files changes. (fixme) To
+completely rebuild a project including the cmake, before typing the cmake ...
+step first enter ```rm CMakeCache.txt``` or whatever complications your IDE
+requires.
 
 ```bash
 cd yourprojectdirectory

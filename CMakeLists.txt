@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.13)
 
-set(PROGRAM_NAME picow_access_point)
+set(PROGRAM_NAME picow_access_webapp)
 set(PICO_BOARD pico_w)
 
 if(NOT $ENV{PICO_SDK_PATH})

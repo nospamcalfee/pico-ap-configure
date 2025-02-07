@@ -29,5 +29,12 @@
         </form>
         <p>If you click the "Submit" button, the form-data will be sent to a post handler page called "/configure".</p>
         </div>
+        <div style="display: <!--#ntpready-->;">
+        <h2>HTML Forms</h2>
+        <form action="/csprink" method="POST">
+          <input type="submit" value="Submit">
+        </form>
+        <p>If you click the "Submit" button, the form-data will be sent to a post handler page called "/csprink".</p>
+        </div>
    </body>
 </html>
