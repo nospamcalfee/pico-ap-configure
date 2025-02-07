@@ -38,7 +38,7 @@ void be_access_point() {
     printf("Http server for configuration initialised\n");
 
     // Configure SSI and CGI handler
-    ssi_init(RUN_STATE_AP); //we need ssid form
+    ssi_init(RUN_STATE_ACCESS_POINT); //we need ssid form
     printf("SSI Handler initialised\n");
     cgi_init();
     printf("CGI Handler initialised\n");
@@ -114,7 +114,7 @@ int main() {
 
     // Initialise web server
     // Configure SSI and CGI handler
-    ssi_init(RUN_STATE_APP); //no ssid form
+    ssi_init(RUN_STATE_APPLICATION); //no ssid form
     printf("SSI Handler initialised\n");
     cgi_init();
     printf("CGI Handler initialised\n");
