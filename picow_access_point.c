@@ -64,7 +64,8 @@ void be_access_point() {
     dns_server_t dns_server;
     dns_server_init(&dns_server, &post_state->gw);
     // wait until user sets a ssid/password
-    while(!config_changed) {
+    for (int i = 0; i < 60; i++) {
+    // while(!config_changed) {
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
         sleep_ms(900);
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
@@ -73,6 +74,10 @@ void be_access_point() {
             netif_get_hostname(netif_default));
         printf("Access Point IP addr: %s\n",
             ip4addr_ntoa(netif_ip4_addr(netif_list)));
+        if (config_changed) {
+            sleep_ms(2000); //seems to be a post handling race?
+            break; //got a new ssid
+        }
     };
     // tcp_server_close(post_state);
     dns_server_deinit(&dns_server);
