@@ -40,7 +40,7 @@
 #include "lwip/apps/httpd.h"
 #include "lwip/def.h"
 #include "lwip/mem.h"
-#include "ap_post_handler.h"
+#include "post_handler.h"
 #include <stdio.h>
 #include <string.h>
 

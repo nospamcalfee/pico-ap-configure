@@ -7,7 +7,7 @@
 #include "cgi.h"
 #include "dhcpserver.h"
 #include "dnsserver.h"
-#include "ap_post_handler.h"
+#include "post_handler.h"
 void mdns_example_init(void);
 
 void set_host_name(const char*hostname)

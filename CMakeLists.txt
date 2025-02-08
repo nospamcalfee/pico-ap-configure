@@ -30,7 +30,7 @@ add_executable(${PROGRAM_NAME}
         dnsserver/dnsserver.c
         cgi.c
         ssi.c
-        ap_post_handler.c
+        post_handler.c
         ${PICO_SDK_PATH}/lib/lwip/src/apps/mdns/mdns.c
         ${PICO_SDK_PATH}/lib/lwip/src/apps/mdns/mdns_domain.c
         ${PICO_SDK_PATH}/lib/lwip/src/apps/mdns/mdns_out.c
