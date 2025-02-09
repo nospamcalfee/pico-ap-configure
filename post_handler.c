@@ -50,6 +50,11 @@
 #error This needs LWIP_HTTPD_SUPPORT_POST
 #endif
 
+#undef C
+#define C(x) #x,
+const char * const post_html_tags[] = { POST_NAMES };
+#undef C
+
 char wifi_ssid[LWIP_POST_BUFSIZE];
 char wifi_password[LWIP_POST_BUFSIZE];
 int config_changed; //set to zero, watch for non-zero from POST handler
@@ -68,18 +73,22 @@ httpd_post_begin(void *connection, const char *uri, const char *http_request,
   LWIP_UNUSED_ARG(http_request_len);
   LWIP_UNUSED_ARG(content_len);
   LWIP_UNUSED_ARG(post_auto_wnd);
-  if (!memcmp(uri, "/configure", 10)) {
-    if (current_connection != connection) {
-      current_connection = connection;
-      valid_connection = NULL;
-      /* default page */
-      snprintf(response_uri, response_uri_len, "/page2.shtml");
-      /* e.g. for large uploads to slow flash over a fast connection, you should
-         manually update the rx window. That way, a sender can only send a full
-         tcp window at a time. If this is required, set 'post_aut_wnd' to 0.
-         We do not need to throttle upload speed here, so: */
-      *post_auto_wnd = 1;
-      return ERR_OK;
+  for (int i = 0; i < POST_NAMES_TOP; i++) {
+    // if (!memcmp(uri, "/configure", 10)) {
+    if (!memcmp(uri + 1, post_html_tags[i], strlen(post_html_tags[i]))) {
+      if (current_connection != connection) {
+        current_connection = connection;
+        valid_connection = NULL;
+        printf("POST handler post name=%s\n", post_html_tags[i]);
+        /* default page */
+        snprintf(response_uri, response_uri_len, "/page2.shtml");
+        /* e.g. for large uploads to slow flash over a fast connection, you should
+           manually update the rx window. That way, a sender can only send a full
+           tcp window at a time. If this is required, set 'post_aut_wnd' to 0.
+           We do not need to throttle upload speed here, so: */
+        *post_auto_wnd = 1;
+        return ERR_OK;
+      }
     }
   }
   return ERR_VAL;

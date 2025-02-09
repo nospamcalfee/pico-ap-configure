@@ -56,6 +56,11 @@
 //maximum allowed ssid and password or any post action.
 #define LWIP_POST_BUFSIZE 32
 
+#define C(x) x,
+#define POST_NAMES C(configure)C(csprink)
+enum post_names { POST_NAMES POST_NAMES_TOP };
+#undef C
+
 //WIFI Credentials - passed from cmake command, later maybe overwritten
 extern char wifi_ssid[LWIP_POST_BUFSIZE];
 extern char wifi_password[LWIP_POST_BUFSIZE];

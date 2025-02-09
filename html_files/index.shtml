@@ -34,7 +34,7 @@
         <form action="/csprink" method="POST">
           <input type="submit" value="Submit">
         </form>
-        <p>If you click the "Submit" button, the form-data will be sent to a post handler page called "/csprink".</p>
+        <p>If you click the "Submit" button, the form will be sent to a post handler page called "/csprink".</p>
         </div>
    </body>
 </html>
