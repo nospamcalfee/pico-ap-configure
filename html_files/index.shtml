@@ -30,8 +30,10 @@
         <p>If you click the "Submit" button, the form-data will be sent to a post handler page called "/configure".</p>
         </div>
         <div style="display: <!--#ntpready-->;">
-        <h2>HTML Forms</h2>
+        <h2>HTML Forms 2</h2>
         <form action="/csprink" method="POST">
+          <label for="json1">app json:</label><br>
+          <input type="text" id="json1" name="json1" value="{}"><br>
           <input type="submit" value="Submit">
         </form>
         <p>If you click the "Submit" button, the form will be sent to a post handler page called "/csprink".</p>

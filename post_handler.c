@@ -76,19 +76,19 @@ httpd_post_begin(void *connection, const char *uri, const char *http_request,
   for (int i = 0; i < POST_NAMES_TOP; i++) {
     // if (!memcmp(uri, "/configure", 10)) {
     if (!memcmp(uri + 1, post_html_tags[i], strlen(post_html_tags[i]))) {
-      if (current_connection != connection) {
-        current_connection = connection;
-        valid_connection = NULL;
-        printf("POST handler post name=%s\n", post_html_tags[i]);
-        /* default page */
-        snprintf(response_uri, response_uri_len, "/page2.shtml");
-        /* e.g. for large uploads to slow flash over a fast connection, you should
-           manually update the rx window. That way, a sender can only send a full
-           tcp window at a time. If this is required, set 'post_aut_wnd' to 0.
-           We do not need to throttle upload speed here, so: */
-        *post_auto_wnd = 1;
-        return ERR_OK;
-      }
+        if (current_connection != connection) {
+            current_connection = connection;
+            valid_connection = NULL;
+            printf("POST handler post name=%s\n", post_html_tags[i]);
+            /* default page */
+            snprintf(response_uri, response_uri_len, "/page2.shtml");
+            /* e.g. for large uploads to slow flash over a fast connection, you should
+               manually update the rx window. That way, a sender can only send a full
+               tcp window at a time. If this is required, set 'post_aut_wnd' to 0.
+               We do not need to throttle upload speed here, so: */
+            *post_auto_wnd = 1;
+            return ERR_OK;
+        }
     }
   }
   return ERR_VAL;
@@ -97,64 +97,62 @@ httpd_post_begin(void *connection, const char *uri, const char *http_request,
 err_t
 httpd_post_receive_data(void *connection, struct pbuf *p)
 {
-  err_t ret;
+    err_t ret;
 
-  LWIP_ASSERT("NULL pbuf", p != NULL);
+    LWIP_ASSERT("NULL pbuf", p != NULL);
 
-  if (current_connection == connection) {
-    u16_t token_user = pbuf_memfind(p, "ssid=", 5, 0);
-    u16_t token_pass = pbuf_memfind(p, "pass=", 5, 0);
-    if ((token_user != 0xFFFF) && (token_pass != 0xFFFF)) {
-      u16_t value_user = token_user + 5;
-      u16_t value_pass = token_pass + 5;
-      u16_t len_user = 0;
-      u16_t len_pass = 0;
-      u16_t tmp;
-      /* find ssid len */
-      tmp = pbuf_memfind(p, "&", 1, value_user);
-      if (tmp != 0xFFFF) {
-        len_user = tmp - value_user;
-      } else {
-        len_user = p->tot_len - value_user;
-      }
-      /* find pass len */
-      tmp = pbuf_memfind(p, "&", 1, value_pass);
-      if (tmp != 0xFFFF) {
-        len_pass = tmp - value_pass;
-      } else {
-        len_pass = p->tot_len - value_pass;
-      }
-      if ((len_user > 0) && (len_user < LWIP_POST_BUFSIZE) &&
-          (len_pass > 0) && (len_pass < LWIP_POST_BUFSIZE)) {
-        /* provide contiguous storage if p is a chained pbuf */
-        // char buf_user[LWIP_POST_BUFSIZE];
-        // char buf_pass[LWIP_POST_BUFSIZE];
-        char *w_ssid = (char *)pbuf_get_contiguous(p, wifi_ssid, sizeof(wifi_ssid), len_user, value_user);
-        char *w_pass = (char *)pbuf_get_contiguous(p, wifi_password, sizeof(wifi_password), len_pass, value_pass);
-        if (w_ssid && w_pass) {
-          memcpy(wifi_ssid, w_ssid, len_user); //preserve the new ssid
-          wifi_ssid[len_user] = 0;
-          memcpy(wifi_password, w_pass, len_pass);
-          wifi_password[len_pass] = 0;
-          printf("POST handler wifi_ssid=%s wifi_password=%s\n",wifi_ssid, wifi_password);
-          // if (!strcmp(ssid, "lwip") && !strcmp(pass, "post")) {
-            /* ssid and password are correct, create a "session" */
-            valid_connection = connection;
-          // }
+    if (current_connection == connection) {
+        u16_t token_user = pbuf_memfind(p, "ssid=", 5, 0);
+        u16_t token_pass = pbuf_memfind(p, "pass=", 5, 0);
+        if ((token_user != 0xFFFF) && (token_pass != 0xFFFF)) {
+            u16_t value_user = token_user + 5;
+            u16_t value_pass = token_pass + 5;
+            u16_t len_user = 0;
+            u16_t len_pass = 0;
+            u16_t tmp;
+            /* find ssid len */
+            tmp = pbuf_memfind(p, "&", 1, value_user);
+            if (tmp != 0xFFFF) {
+            len_user = tmp - value_user;
+            } else {
+            len_user = p->tot_len - value_user;
+            }
+            /* find pass len */
+            tmp = pbuf_memfind(p, "&", 1, value_pass);
+            if (tmp != 0xFFFF) {
+            len_pass = tmp - value_pass;
+            } else {
+            len_pass = p->tot_len - value_pass;
+            }
+            if ((len_user > 0) && (len_user < LWIP_POST_BUFSIZE) &&
+               (len_pass > 0) && (len_pass < LWIP_POST_BUFSIZE)) {
+                /* provide contiguous storage if p is a chained pbuf */
+                // char buf_user[LWIP_POST_BUFSIZE];
+                // char buf_pass[LWIP_POST_BUFSIZE];
+                char *w_ssid = (char *)pbuf_get_contiguous(p, wifi_ssid, sizeof(wifi_ssid), len_user, value_user);
+                char *w_pass = (char *)pbuf_get_contiguous(p, wifi_password, sizeof(wifi_password), len_pass, value_pass);
+                if (w_ssid && w_pass) {
+                    memcpy(wifi_ssid, w_ssid, len_user); //preserve the new ssid
+                    wifi_ssid[len_user] = 0;
+                    memcpy(wifi_password, w_pass, len_pass);
+                    wifi_password[len_pass] = 0;
+                    printf("POST handler wifi_ssid=%s wifi_password=%s\n",wifi_ssid, wifi_password);
+                    /* ssid and password are correct, create a "session" */
+                    valid_connection = connection;
+                }
+            }
         }
-      }
+        /* not returning ERR_OK aborts the connection, so return ERR_OK unless the
+           connection is unknown */
+        ret = ERR_OK;
+    } else {
+        ret = ERR_VAL;
     }
-    /* not returning ERR_OK aborts the connection, so return ERR_OK unless the
-       connection is unknown */
-    ret = ERR_OK;
-  } else {
-    ret = ERR_VAL;
-  }
 
-  /* this function must ALWAYS free the pbuf it is passed or it will leak memory */
-  pbuf_free(p);
+    /* this function must ALWAYS free the pbuf it is passed or it will leak memory */
+    pbuf_free(p);
 
-  return ret;
+    return ret;
 }
 
 void
