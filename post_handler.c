@@ -57,11 +57,13 @@ const char * const post_html_tags[] = { POST_NAMES };
 
 char wifi_ssid[LWIP_POST_BUFSIZE];
 char wifi_password[LWIP_POST_BUFSIZE];
+char json1[LWIP_POST_BUFSIZE];
 int config_changed; //set to zero, watch for non-zero from POST handler
 
 //fixme this strange racy connection stuff needs to be figured out for the ap
 static void *current_connection;
 static void *valid_connection;
+static void *valid_json;
 
 err_t
 httpd_post_begin(void *connection, const char *uri, const char *http_request,
@@ -141,6 +143,29 @@ httpd_post_receive_data(void *connection, struct pbuf *p)
                     valid_connection = connection;
                 }
             }
+        } else {
+            u16_t token_json1 = pbuf_memfind(p, "json1=", 6, 0);
+            if (token_json1 != 0xFFFF) {
+                u16_t value_json1 = token_json1 + 6;
+                u16_t len_json1 = 0;
+                u16_t tmp;
+                tmp = pbuf_memfind(p, "&", 1, value_json1);
+                if (tmp != 0xFFFF) {
+                    len_json1 = tmp - value_json1;
+                } else {
+                    len_json1 = p->tot_len - value_json1;
+                }
+                if ((len_json1 > 0) && (len_json1 < LWIP_POST_BUFSIZE)) {
+                    char *w_json1 = (char *)pbuf_get_contiguous(p, json1, sizeof(json1), len_json1, value_json1);
+                    if (w_json1) {
+                        memcpy(json1, w_json1, len_json1); //preserve the new ssid
+                        json1[len_json1] = 0;   //terminate c string
+                        printf("POST handler json=%s\n", json1);
+                        /* json is correct, set flag for post_finished*/
+                        valid_json = connection;
+                    }
+                }
+            }
         }
         /* not returning ERR_OK aborts the connection, so return ERR_OK unless the
            connection is unknown */
@@ -162,9 +187,14 @@ httpd_post_finished(void *connection, char *response_uri, u16_t response_uri_len
   snprintf(response_uri, response_uri_len, "/page2.shtml");
   if (current_connection == connection) {
     if (valid_connection == connection) {
-      /* login succeeded */
-      config_changed = 1; //signal to app that the config has changed, use it
-      snprintf(response_uri, response_uri_len, "/index.shtml");
+        /* login succeeded */
+        config_changed = 1; //signal to app that the config has changed, use it
+        snprintf(response_uri, response_uri_len, "/index.shtml");
+    } else {
+        if (current_connection == valid_json) {
+            //we got json
+            snprintf(response_uri, response_uri_len, "/index.shtml");
+        }
     }
     current_connection = NULL;
     valid_connection = NULL;

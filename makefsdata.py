@@ -39,6 +39,8 @@ for file in files:
         header += "Content-type: image/gif\r\n"
     elif '.png' in file:
         header += "Content-type: image/png\r\n"
+    elif '.ico' in file:
+        header += "Content-type: image/ico\r\n"
     elif '.class' in file:
        header += "Content-type: application/octet-stream\r\n"
     elif '.js' in file:
