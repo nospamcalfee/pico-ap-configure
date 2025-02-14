@@ -8,6 +8,10 @@
 #include "dhcpserver.h"
 #include "dnsserver.h"
 #include "post_handler.h"
+#include "pico/util/datetime.h"
+#include "hardware/rtc.h"
+#include "lwip/apps/sntp.h"
+
 void mdns_example_init(void);
 
 void set_host_name(const char*hostname)
@@ -28,6 +32,32 @@ typedef struct TCP_SERVER_T_ {
 static TCP_SERVER_T *post_state;
 
 #define DEBUG_printf printf
+
+//seconds difference between 1.1.1970 and 1.1.1900
+//ntp is based on since 1900
+//rtc is based on since 1970
+#define NTP_DELTA 2208988800
+void set_system_time(u32_t secs){
+    time_t epoch = secs - NTP_DELTA;
+    datetime_t t;
+    char datetime_str[128];
+    struct tm *time = gmtime(&epoch);
+
+datetime_t datetime = {
+    .year = (int16_t) (time->tm_year + 1900),
+    .month = (int8_t) (time->tm_mon + 1),
+    .day = (int8_t) time->tm_mday,
+    .hour = (int8_t) time->tm_hour,
+    .min = (int8_t) time->tm_min,
+    .sec = (int8_t) time->tm_sec,
+    .dotw = (int8_t) time->tm_wday,
+};
+
+    rtc_set_datetime(&datetime);
+    printf ("RTC set to: %04d-%02d-%02d %02d:%02d:%02d\n",
+           time->tm_year + 1900, time->tm_mon + 1, time->tm_mday,
+           time->tm_hour, time->tm_min, time->tm_sec);
+}
 
 void be_access_point() {
     //hang here until someone configures to my local ssid
@@ -87,6 +117,7 @@ void be_access_point() {
 }
 int main() {
     stdio_init_all();
+    rtc_init();
 
      //init with default ssid/password - for now from compile, later from flash
     strncpy(wifi_ssid, WIFI_SSID, sizeof(wifi_ssid)-1);
@@ -117,6 +148,10 @@ int main() {
 
     printf("Connected: %s picoW IP addr: %s\n", netif_get_hostname(netif_default), ip4addr_ntoa(netif_ip4_addr(netif_list)));
 
+    //start getting the time
+    sntp_setoperatingmode(SNTP_OPMODE_POLL);
+    sntp_init();
+
     // Initialise web server
     // Configure SSI and CGI handler
     ssi_init(RUN_STATE_APPLICATION); //no ssid form
@@ -126,10 +161,15 @@ int main() {
 
     // Infinite loop
     while(1) {
+        datetime_t t;
+        char datetime_str[128];
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
         sleep_ms(9000);
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
         sleep_ms(1000);
-        printf("Connected to %s.local: IP addr: %s\n", netif_get_hostname(netif_default), ip4addr_ntoa(netif_ip4_addr(netif_list)));
+        rtc_get_datetime(&t);
+        datetime_to_str(datetime_str, sizeof(datetime_str), &t);
+
+        printf("%s Connect to %s.local or IP addr: %s\n", datetime_str, netif_get_hostname(netif_default), ip4addr_ntoa(netif_ip4_addr(netif_list)));
     };
 }

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.13)
 
-set(PROGRAM_NAME picow_access_webapp)
+set(PROGRAM_NAME picow_webapp)
 set(PICO_BOARD pico_w)
 
 if(NOT $ENV{PICO_SDK_PATH})
@@ -63,6 +63,8 @@ target_link_libraries(${PROGRAM_NAME}
         pico_lwip_http
         hardware_adc
         pico_rand
+        hardware_rtc
+        pico_lwip_sntp
         )
 
 pico_add_extra_outputs(${PROGRAM_NAME})

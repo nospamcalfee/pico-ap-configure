@@ -69,6 +69,7 @@
 #define MEM_DEBUG                   LWIP_DBG_OFF
 #define MEMP_DEBUG                  LWIP_DBG_OFF
 #define SYS_DEBUG                   LWIP_DBG_OFF
+#define SNTP_DEBUG                  LWIP_DBG_ON
 #define TCP_DEBUG                   LWIP_DBG_OFF
 #define TCP_INPUT_DEBUG             LWIP_DBG_OFF
 #define TCP_OUTPUT_DEBUG            LWIP_DBG_OFF
@@ -89,7 +90,7 @@
 #define LWIP_AUTOIP 1
 #define LWIP_RAND() ((uint32_t)get_rand_32())
 #define LWIP_NUM_NETIF_CLIENT_DATA 1
-#define MEMP_NUM_SYS_TIMEOUT            (LWIP_NUM_SYS_TIMEOUT_INTERNAL+4)
+#define MEMP_NUM_SYS_TIMEOUT            (LWIP_NUM_SYS_TIMEOUT_INTERNAL+5)
 // This section enables HTTPD server with SSI, SGI
 // and tells server which converted HTML files to use
 #define LWIP_HTTPD 1
@@ -104,3 +105,9 @@
 #define HTTPD_FSDATA_FILE "htmldata.c"
 //get hostname from the make invocation:
 #define CYW43_HOST_NAME HOSTNAME
+
+//ntp defines
+#define SNTP_SERVER_DNS 1
+#define SNTP_SERVER_ADDRESS "pool.ntp.org"
+#define SNTP_SET_SYSTEM_TIME_NTP set_system_time
+#define SNTP_STARTUP_DELAY 0
