@@ -116,6 +116,7 @@ void be_access_point() {
     cyw43_arch_disable_ap_mode();
 }
 int main() {
+    static char datetime_str[128];
     stdio_init_all();
     rtc_init();
 
@@ -162,7 +163,6 @@ int main() {
     // Infinite loop
     while(1) {
         datetime_t t;
-        char datetime_str[128];
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
         sleep_ms(9000);
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);

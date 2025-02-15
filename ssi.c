@@ -2,6 +2,8 @@
 #include "pico/cyw43_arch.h"
 #include "hardware/adc.h"
 #include "ssi.h"
+#include "pico/util/datetime.h"
+#include "hardware/rtc.h"
 
 #undef C
 #define C(x) #x,
@@ -9,7 +11,7 @@ const char * const application_ssi_tags[] = { RUN_STATE_NAMES };
 #undef C
 
 // SSI tags - tag length limited to 8 bytes by default
-#define TAG_NAMES C(volt)C(temp)C(led)C(disp)C(ntpready)
+#define TAG_NAMES C(dtime)C(volt)C(temp)C(led)C(disp)C(ntpready)
 #define C(x) x,
 enum ssi_tag_enum { TAG_NAMES };
 #undef C
@@ -23,6 +25,14 @@ uint8_t ssi_state; //0 is we don't have ntp time yet.
 short unsigned int ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
   size_t printed;
   switch (iIndex) {
+  case dtime:
+    {
+        datetime_t t;
+        rtc_get_datetime(&t);
+        datetime_to_str(pcInsert, iInsertLen, &t);
+        printed = strlen(pcInsert); //return length of date/time
+    }
+    break;
   case volt:
     {
       const float voltage = adc_read() * 3.3f / (1 << 12);
