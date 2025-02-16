@@ -35,6 +35,8 @@ add_executable(${PROGRAM_NAME}
         ${PICO_SDK_PATH}/lib/lwip/src/apps/mdns/mdns_domain.c
         ${PICO_SDK_PATH}/lib/lwip/src/apps/mdns/mdns_out.c
         mdns_example.c
+        flash_onboard.c
+        ring_buffer.c
         )
 
 #target_compile_options(${PROGRAM_NAME} PUBLIC -Werror -Wall -Wextra -Wnull-dereference -Wno-unused-parameter -Wno-null-dereference -ggdb3 -O3)
@@ -43,11 +45,14 @@ target_compile_options(${PROGRAM_NAME} PUBLIC -ggdb3 -O0 -UNDEBUG)
 
 string(APPEND CMAKE_EXE_LINKER_FLAGS "-Wl,--print-memory-usage -Wl,--cref")
 
+pico_set_linker_script(${PROGRAM_NAME} ${CMAKE_SOURCE_DIR}/memmap_custom.ld)
+
 target_include_directories(${PROGRAM_NAME} PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}
         ${CMAKE_CURRENT_LIST_DIR}/.. # for our common lwipopts
         ${CMAKE_CURRENT_LIST_DIR}/dhcpserver
         ${CMAKE_CURRENT_LIST_DIR}/dnsserver
+        ${CMAKE_CURRENT_LIST_DIR}/include
         )
 
 #pass some cmake variables to the program, warning some may be case sensitive.
