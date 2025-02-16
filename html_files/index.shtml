@@ -5,7 +5,7 @@
         <title>PicoW Webserver</title> 
         <link rel="icon" href="favicon.ico" type="image/x-icon">
     </head>
-    <body> <h1>PicoW Webserver Tutorial</h1>
+    <body> <h1><!--#host--> Web App</h1>
         <p><!--#dtime--></p>
         <h2>This bit is SSI:</h2>
         <p>Voltage: <!--#volt--></p>

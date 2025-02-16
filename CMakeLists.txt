@@ -25,7 +25,7 @@ execute_process(COMMAND
 )
 
 add_executable(${PROGRAM_NAME}
-        picow_access_point.c
+        picow_web.c
         dhcpserver/dhcpserver.c
         dnsserver/dnsserver.c
         cgi.c

@@ -11,7 +11,7 @@ const char * const application_ssi_tags[] = { RUN_STATE_NAMES };
 #undef C
 
 // SSI tags - tag length limited to 8 bytes by default
-#define TAG_NAMES C(dtime)C(volt)C(temp)C(led)C(disp)C(ntpready)
+#define TAG_NAMES C(dtime)C(host)C(volt)C(temp)C(led)C(disp)C(ntpready)
 #define C(x) x,
 enum ssi_tag_enum { TAG_NAMES };
 #undef C
@@ -19,6 +19,7 @@ enum ssi_tag_enum { TAG_NAMES };
 static const char * ssi_tags_name[] = { TAG_NAMES };
 #undef C
 
+char local_host_name[20];
 // const char * ssi_tags[] = {"volt","temp","led", "disp", "ntpready"};
 uint8_t ssi_state; //0 is we don't have ntp time yet.
 
@@ -33,6 +34,12 @@ short unsigned int ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
         printed = strlen(pcInsert); //return length of date/time
     }
     break;
+  case host:
+    {
+        printed = snprintf(pcInsert, iInsertLen, "%s", local_host_name);
+    }
+    break;
+
   case volt:
     {
       const float voltage = adc_read() * 3.3f / (1 << 12);

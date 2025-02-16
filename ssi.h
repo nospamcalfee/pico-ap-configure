@@ -10,6 +10,7 @@ extern const char * const application_ssi_tags[];
 //run_state gets updated as we progress in starting the app
 
 extern uint8_t ssi_state; //set to run_state
+extern char local_host_name[20];
 
 void ssi_init(enum app_run_state dispset);
 #endif

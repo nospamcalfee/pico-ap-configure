@@ -14,7 +14,7 @@
 
 void mdns_example_init(void);
 
-void set_host_name(const char*hostname)
+void set_host_name(const char *hostname)
 {
     cyw43_arch_lwip_begin();
     struct netif *n = &cyw43_state.netif[CYW43_ITF_STA];
@@ -59,7 +59,7 @@ datetime_t datetime = {
            time->tm_hour, time->tm_min, time->tm_sec);
 }
 
-void be_access_point() {
+void be_access_point(char *ap_name) {
     //hang here until someone configures to my local ssid
     if (post_state == NULL) {
         post_state = calloc(1, sizeof(TCP_SERVER_T));
@@ -73,7 +73,7 @@ void be_access_point() {
     cgi_init();
     printf("CGI Handler initialised\n");
 
-    const char *ap_name = "picow_test";
+    // const char *ap_name = "picow_test";
 #if 1
     const char *password = "password";
 #else
@@ -118,7 +118,23 @@ void be_access_point() {
 int main() {
     static char datetime_str[128];
     stdio_init_all();
+    // set default Start on Friday 5th of June 2020 15:45:00
+    datetime_t t = {
+            .year  = 2020,
+            .month = 06,
+            .day   = 05,
+            .dotw  = 5, // 0 is Sunday, so 5 is Friday
+            .hour  = 15,
+            .min   = 45,
+            .sec   = 00
+    };
+
+
     rtc_init();
+    rtc_set_datetime(&t);
+    // clk_sys is >2000x faster than clk_rtc, so datetime is not updated immediately when rtc_get_datetime() is called.
+    // The delay is up to 3 RTC clock cycles (which is 64us with the default clock settings)
+    sleep_us(100);
 
      //init with default ssid/password - for now from compile, later from flash
     strncpy(wifi_ssid, WIFI_SSID, sizeof(wifi_ssid)-1);
@@ -130,16 +146,24 @@ int main() {
     cyw43_arch_init();
 
     cyw43_arch_enable_sta_mode();
+    u8_t hwaddr[8 /*NETIF_MAX_HWADDR_LEN*/];
+    cyw43_wifi_get_mac(netif_default->state, netif_default->name[1] - '0', hwaddr);
+    printf("mac address %02x.%02x.%02x.%02x.%02x.%02x\n", hwaddr[0], hwaddr[1], hwaddr[2], hwaddr[3], hwaddr[4], hwaddr[5]);
+    snprintf(local_host_name, sizeof(local_host_name), "%s_%02x_%02x_%02x", netif_get_hostname(netif_default),hwaddr[3], hwaddr[4], hwaddr[5]);
+    printf("local host name %s\n", local_host_name);
+    set_host_name(local_host_name);
+
     httpd_init();
     // Connect to the WiFI network - loop until connected
      while(cyw43_arch_wifi_connect_timeout_ms(wifi_ssid, wifi_password, CYW43_AUTH_WPA2_AES_PSK, 30000) != 0){
         printf("failed to connect...\n");
         config_changed = 0; // prepare app for ssid config change.
-        be_access_point();
+        be_access_point(local_host_name);
         cyw43_arch_deinit();
         cyw43_arch_init();
         cyw43_arch_enable_sta_mode();
     }
+    set_host_name(local_host_name);
     // Print a success message once connected
     printf("Connected! \n");
 
