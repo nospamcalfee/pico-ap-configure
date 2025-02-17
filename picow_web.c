@@ -11,6 +11,8 @@
 #include "pico/util/datetime.h"
 #include "hardware/rtc.h"
 #include "lwip/apps/sntp.h"
+#include "ring_buffer.h"
+#include "flash_io.h"
 
 void mdns_example_init(void);
 
@@ -30,6 +32,7 @@ typedef struct TCP_SERVER_T_ {
 } TCP_SERVER_T;
 
 static TCP_SERVER_T *post_state;
+static rb_t ssid_rb;    //keep buffer off stack
 
 #define DEBUG_printf printf
 
@@ -106,6 +109,7 @@ void be_access_point(char *ap_name) {
             ip4addr_ntoa(netif_ip4_addr(netif_list)));
         if (config_changed) {
             sleep_ms(2000); //seems to be a post handling race?
+            write_ssid(&ssid_rb, wifi_ssid, wifi_password);
             break; //got a new ssid
         }
     };
@@ -116,6 +120,7 @@ void be_access_point(char *ap_name) {
     cyw43_arch_disable_ap_mode();
 }
 int main() {
+    int8_t err;
     static char datetime_str[128];
     stdio_init_all();
     // set default Start on Friday 5th of June 2020 15:45:00
@@ -136,11 +141,30 @@ int main() {
     // The delay is up to 3 RTC clock cycles (which is 64us with the default clock settings)
     sleep_us(100);
 
-     //init with default ssid/password - for now from compile, later from flash
-    strncpy(wifi_ssid, WIFI_SSID, sizeof(wifi_ssid)-1);
-    wifi_ssid[sizeof(wifi_ssid) - 1] = 0;
-    strncpy(wifi_password, WIFI_PASSWORD, sizeof(wifi_password)-1);
-    wifi_password[sizeof(wifi_password) - 1] = 0;
+    int nosids = read_ssids(&ssid_rb); //find out how many we have
+    if (nosids < 0) {
+        printf("read ssids failure %d", nosids);
+        nosids = 0;
+    }
+    //read last ssid for now
+    err = read_ssid(&ssid_rb, nosids);
+
+    if (err < 0 || nosids == 0) {
+        //init with default ssid/password - for now from compile, later from flash
+        strncpy(wifi_ssid, WIFI_SSID, sizeof(wifi_ssid)-1);
+        wifi_ssid[sizeof(wifi_ssid) - 1] = 0;
+        strncpy(wifi_password, WIFI_PASSWORD, sizeof(wifi_password)-1);
+        wifi_password[sizeof(wifi_password) - 1] = 0;
+        write_ssid(&ssid_rb, wifi_ssid, wifi_password); //write out default
+        read_ssids(&ssid_rb); //for debug
+    } else {
+        // we have the raw data in pagebuff, move to ssid/pw
+        int s1len = strlen(pagebuff) + 1;
+        memcpy(wifi_ssid, pagebuff, s1len);
+        int s2len = strlen(pagebuff + s1len) + 1;
+        memcpy(wifi_password, pagebuff + s1len, s2len);
+        printf("From flash wifi_ssid=%s wifi_password=%s\n",wifi_ssid, wifi_password);
+    }
 
     // be_access_point(); //for test start with ap mode
     cyw43_arch_init();
