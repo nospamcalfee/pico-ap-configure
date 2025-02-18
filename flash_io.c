@@ -85,32 +85,6 @@ rb_errors_t write_ssid(rb_t *rb, char * ss, char *pw) {
     if (good_reads < 0) {
         good_reads = 0; //if I cannot read them, say there are no good ssids
     }
-
-    //less than required number of strings, write more.
-    // for (uint32_t i = good_reads; i < SSID_TEST_WRITES; i++) {
-    //     //finally we get to write some strings
-    //     //build 2 strings for one flash write
-
-    //     strcpy(tempssid, test_strings[(i + wrcnt) % ARRAY_LENGTH(test_strings)]);
-    //     strcat(tempssid, "\n");
-    //     strcat(tempssid, test_strings[((i + wrcnt) + 1) % ARRAY_LENGTH(test_strings)]);
-    //     strcat(tempssid, "\n");
-    //     wrcnt++;
-    //     rb_errors_t err = rb_append(rb, SSID_ID, tempssid, strlen(tempssid) + 1,
-    //                                 pagebuff, true);
-    //     printf("Just wrote ssid %ld at 0x%lx stat=%d\n%s\n", i, rb->last_wrote, err, tempssid);
-    //     // hexdump(stdout, tempssid, strlen(tempssid) + 1, 16, 8);
-    //     if (err != RB_OK) {
-    //         // printf("some write failure %d\n", err);
-    //         if (err == RB_HDR_LOOP) {
-    //             //not enough room, let caller handle it
-    //             printf("not enough room err=%d, let caller handle it\n", err);
-    //         } else {
-    //             printf("some bad write error=%d\n",err);
-    //         }
-    //         return err;
-    //     }
-    // }
     //build 2 strings for one flash write
     int s1len = strlen(ss) + 1;
     memcpy(tempssid, ss, s1len);

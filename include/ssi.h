@@ -13,4 +13,7 @@ extern uint8_t ssi_state; //set to run_state
 extern char local_host_name[20];
 
 void ssi_init(enum app_run_state dispset);
+
+void set_host_name(const char *hostname);
+
 #endif

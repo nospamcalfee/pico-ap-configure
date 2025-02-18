@@ -38,5 +38,8 @@
         </form>
         <p>If you click the "Submit" button, the form will be sent to a post handler page called "/csprink".</p>
         </div>
+        <div>
+            <a href="/config.shtml">Set Hostname</a>
+        </div>
    </body>
 </html>

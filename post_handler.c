@@ -43,6 +43,7 @@
 #include "post_handler.h"
 #include <stdio.h>
 #include <string.h>
+#include <ssi.h>
 
 /** define LWIP_HTTPD_EXAMPLE_GENERATEDFILES to 1 to enable this file system ?? what*/
 
@@ -64,6 +65,7 @@ int config_changed; //set to zero, watch for non-zero from POST handler
 static void *current_connection;
 static void *valid_connection;
 static void *valid_json;
+static void *valid_config;
 
 err_t
 httpd_post_begin(void *connection, const char *uri, const char *http_request,
@@ -76,7 +78,6 @@ httpd_post_begin(void *connection, const char *uri, const char *http_request,
   LWIP_UNUSED_ARG(content_len);
   LWIP_UNUSED_ARG(post_auto_wnd);
   for (int i = 0; i < POST_NAMES_TOP; i++) {
-    // if (!memcmp(uri, "/configure", 10)) {
     if (!memcmp(uri + 1, post_html_tags[i], strlen(post_html_tags[i]))) {
         if (current_connection != connection) {
             current_connection = connection;
@@ -165,6 +166,30 @@ httpd_post_receive_data(void *connection, struct pbuf *p)
                         valid_json = connection;
                     }
                 }
+            } else {
+                u16_t token_config = pbuf_memfind(p, "config=", 7, 0);
+                if (token_config != 0xFFFF) {
+                    u16_t value_config = token_config + 7;
+                    u16_t len_config = 0;
+                    u16_t tmp;
+                    tmp = pbuf_memfind(p, "&", 1, value_config);
+                    if (tmp != 0xFFFF) {
+                        len_config = tmp - value_config;
+                    } else {
+                        len_config = p->tot_len - value_config;
+                    }
+                    if ((len_config > 0) && (len_config < LWIP_POST_BUFSIZE)) {
+                        char *w_config = (char *)pbuf_get_contiguous(p, local_host_name, sizeof(local_host_name), len_config, value_config);
+                        if (w_config) {
+                            memcpy(local_host_name, w_config, len_config); //preserve the new ssid
+                            local_host_name[len_config] = 0;   //terminate c string
+                            printf("POST handler json=%s\n", local_host_name);
+                            /* json is correct, set flag for post_finished*/
+                            valid_config = connection;
+                            set_host_name(local_host_name);
+                        }
+                    }
+                }
             }
         }
         /* not returning ERR_OK aborts the connection, so return ERR_OK unless the
@@ -194,6 +219,11 @@ httpd_post_finished(void *connection, char *response_uri, u16_t response_uri_len
         if (current_connection == valid_json) {
             //we got json
             snprintf(response_uri, response_uri_len, "/index.shtml");
+        } else {
+            if (current_connection == valid_config) {
+                //we got config setup
+                snprintf(response_uri, response_uri_len, "/config.shtml");
+            }
         }
     }
     current_connection = NULL;

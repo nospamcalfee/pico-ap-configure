@@ -57,7 +57,7 @@
 #define LWIP_POST_BUFSIZE 32
 
 #define C(x) x,
-#define POST_NAMES C(configure)C(csprink)
+#define POST_NAMES C(configure)C(csprink)C(config)
 enum post_names { POST_NAMES POST_NAMES_TOP };
 #undef C
 
