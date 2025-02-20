@@ -44,6 +44,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <ssi.h>
+#include <flash_io.h>
 
 /** define LWIP_HTTPD_EXAMPLE_GENERATEDFILES to 1 to enable this file system ?? what*/
 
@@ -107,11 +108,16 @@ httpd_post_receive_data(void *connection, struct pbuf *p)
     if (current_connection == connection) {
         u16_t token_user = pbuf_memfind(p, "ssid=", 5, 0);
         u16_t token_pass = pbuf_memfind(p, "pass=", 5, 0);
-        if ((token_user != 0xFFFF) && (token_pass != 0xFFFF)) {
+        u16_t token_config = pbuf_memfind(p, "config=", 7, 0);
+
+        if ((token_user != 0xFFFF) && (token_pass != 0xFFFF) && (token_config != 0xFFFF)) {
             u16_t value_user = token_user + 5;
             u16_t value_pass = token_pass + 5;
             u16_t len_user = 0;
             u16_t len_pass = 0;
+            u16_t value_config = token_config + 7;
+            u16_t len_config = 0;
+
             u16_t tmp;
             /* find ssid len */
             tmp = pbuf_memfind(p, "&", 1, value_user);
@@ -127,20 +133,36 @@ httpd_post_receive_data(void *connection, struct pbuf *p)
             } else {
             len_pass = p->tot_len - value_pass;
             }
+            tmp = pbuf_memfind(p, "&", 1, value_config);
+            if (tmp != 0xFFFF) {
+                len_config = tmp - value_config;
+            } else {
+                len_config = p->tot_len - value_config;
+            }
             if ((len_user > 0) && (len_user < LWIP_POST_BUFSIZE) &&
-               (len_pass > 0) && (len_pass < LWIP_POST_BUFSIZE)) {
+               (len_pass > 0) && (len_pass < LWIP_POST_BUFSIZE) &&
+               (len_config > 0) && (len_config < LWIP_POST_BUFSIZE))
+               {
                 /* provide contiguous storage if p is a chained pbuf */
                 // char buf_user[LWIP_POST_BUFSIZE];
                 // char buf_pass[LWIP_POST_BUFSIZE];
                 char *w_ssid = (char *)pbuf_get_contiguous(p, wifi_ssid, sizeof(wifi_ssid), len_user, value_user);
                 char *w_pass = (char *)pbuf_get_contiguous(p, wifi_password, sizeof(wifi_password), len_pass, value_pass);
-                if (w_ssid && w_pass) {
+                char *w_config = (char *)pbuf_get_contiguous(p, local_host_name, sizeof(local_host_name), len_config, value_config);
+
+                if (w_ssid && w_pass && w_config) {
                     memcpy(wifi_ssid, w_ssid, len_user); //preserve the new ssid
                     wifi_ssid[len_user] = 0;
                     memcpy(wifi_password, w_pass, len_pass);
                     wifi_password[len_pass] = 0;
                     printf("POST handler wifi_ssid=%s wifi_password=%s\n",wifi_ssid, wifi_password);
+                    flash_io_write_ssid(wifi_ssid, wifi_password);
                     /* ssid and password are correct, create a "session" */
+                    memcpy(local_host_name, w_config, len_config); //preserve the new ssid
+                    local_host_name[len_config] = 0;   //terminate c string
+                    printf("POST handler hostname=%s\n", local_host_name);
+                    flash_io_write_hostname(local_host_name, len_config);
+                    set_host_name(local_host_name);
                     valid_connection = connection;
                 }
             }
@@ -183,8 +205,9 @@ httpd_post_receive_data(void *connection, struct pbuf *p)
                         if (w_config) {
                             memcpy(local_host_name, w_config, len_config); //preserve the new ssid
                             local_host_name[len_config] = 0;   //terminate c string
-                            printf("POST handler json=%s\n", local_host_name);
-                            /* json is correct, set flag for post_finished*/
+                            printf("POST handler hostname=%s\n", local_host_name);
+                            flash_io_write_hostname(local_host_name, len_config);
+                            /* set flag for post_finished*/
                             valid_config = connection;
                             set_host_name(local_host_name);
                         }

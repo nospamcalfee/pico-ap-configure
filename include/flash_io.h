@@ -12,13 +12,15 @@ extern uint8_t pagebuff[FLASH_PAGE_SIZE];
  read all ssids from flash. return number of successful reads or negative error
  status
 */
-int read_ssids(rb_t *rb);
+rb_errors_t flash_io_read_ssids(void);
 //read a specific ssid entry
-int read_ssid(rb_t *rb, int n);
+rb_errors_t flash_io_read_ssid(int n);
 //if ssids are not in flash, write them
 //for safety write both the ssid and the password as 2 strings to flash
-void create_ssid_rb(rb_t *rb, enum init_choices ssid_choice);
+// void create_ssid_rb(rb_t *rb, enum init_choices ssid_choice);
 //write a new ssid/pw pair
-rb_errors_t write_ssid(rb_t *rb, char * ss, char *pw);
-
+rb_errors_t flash_io_write_ssid(char * ss, char *pw);
+rb_errors_t flash_io_read_latest_ssid(void);
+rb_errors_t flash_io_write_hostname(char *hostname, uint32_t nlen);
+rb_errors_t flash_io_read_latest_hostname(void);
 #endif //_FLASH_IO_H_

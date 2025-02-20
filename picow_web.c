@@ -16,8 +16,7 @@
 
 void mdns_example_init(void);
 
-void set_host_name(const char *hostname)
-{
+void set_host_name(const char *hostname) {
     cyw43_arch_lwip_begin();
     struct netif *n = &cyw43_state.netif[CYW43_ITF_STA];
     netif_set_hostname(n, hostname);
@@ -98,7 +97,6 @@ void be_access_point(char *ap_name) {
     dns_server_init(&dns_server, &post_state->gw);
     // wait until user sets a ssid/password
     for (int i = 0; i < 60; i++) {
-    // while(!config_changed) {
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
         sleep_ms(900);
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
@@ -109,7 +107,7 @@ void be_access_point(char *ap_name) {
             ip4addr_ntoa(netif_ip4_addr(netif_list)));
         if (config_changed) {
             sleep_ms(2000); //seems to be a post handling race?
-            write_ssid(&ssid_rb, wifi_ssid, wifi_password);
+            flash_io_write_ssid(wifi_ssid, wifi_password);
             break; //got a new ssid
         }
     };
@@ -141,13 +139,14 @@ int main() {
     // The delay is up to 3 RTC clock cycles (which is 64us with the default clock settings)
     sleep_us(100);
 
-    int nosids = read_ssids(&ssid_rb); //find out how many we have
+    int nosids = flash_io_read_ssids(); //find out how many we have
     if (nosids < 0) {
         printf("read ssids failure %d", nosids);
         nosids = 0;
     }
     //read last ssid for now
-    err = read_ssid(&ssid_rb, nosids);
+    err = flash_io_read_ssid(nosids);
+    err = flash_io_read_latest_ssid();
 
     if (err < 0 || nosids == 0) {
         //init with default ssid/password - for now from compile, later from flash
@@ -155,8 +154,8 @@ int main() {
         wifi_ssid[sizeof(wifi_ssid) - 1] = 0;
         strncpy(wifi_password, WIFI_PASSWORD, sizeof(wifi_password)-1);
         wifi_password[sizeof(wifi_password) - 1] = 0;
-        write_ssid(&ssid_rb, wifi_ssid, wifi_password); //write out default
-        read_ssids(&ssid_rb); //for debug
+        flash_io_write_ssid(wifi_ssid, wifi_password); //write out default
+        flash_io_read_ssids(); //for debug
     } else {
         // we have the raw data in pagebuff, move to ssid/pw
         int s1len = strlen(pagebuff) + 1;
@@ -166,14 +165,19 @@ int main() {
         printf("From flash wifi_ssid=%s wifi_password=%s\n",wifi_ssid, wifi_password);
     }
 
-    // be_access_point(); //for test start with ap mode
     cyw43_arch_init();
 
     cyw43_arch_enable_sta_mode();
     u8_t hwaddr[8 /*NETIF_MAX_HWADDR_LEN*/];
     cyw43_wifi_get_mac(netif_default->state, netif_default->name[1] - '0', hwaddr);
     printf("mac address %02x.%02x.%02x.%02x.%02x.%02x\n", hwaddr[0], hwaddr[1], hwaddr[2], hwaddr[3], hwaddr[4], hwaddr[5]);
-    snprintf(local_host_name, sizeof(local_host_name), "%s_%02x_%02x_%02x", netif_get_hostname(netif_default),hwaddr[3], hwaddr[4], hwaddr[5]);
+    err = flash_io_read_latest_hostname();
+    if (err<0) {
+        //no flash hostname
+        snprintf(local_host_name, sizeof(local_host_name), "%s_%02x_%02x_%02x", netif_get_hostname(netif_default),hwaddr[3], hwaddr[4], hwaddr[5]);
+    } else {
+        memcpy(local_host_name, pagebuff, err); //copy in flashes latest hostname
+    }
     printf("local host name %s\n", local_host_name);
     set_host_name(local_host_name);
 
