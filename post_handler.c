@@ -68,6 +68,7 @@ static void *valid_connection;
 static void *valid_json;
 static void *valid_config;
 
+//this function  checks for a legal form action name too
 err_t
 httpd_post_begin(void *connection, const char *uri, const char *http_request,
                  u16_t http_request_len, int content_len, char *response_uri,
@@ -97,7 +98,74 @@ httpd_post_begin(void *connection, const char *uri, const char *http_request,
   }
   return ERR_VAL;
 }
-
+//function to convert escaped hex chars in ascii string
+void squash_hex_string(char* input, char* output)
+{
+    int loop = 0;
+    int i = 0;
+    char substr[3];
+    while (input[loop] != '\0')
+    {
+        if (input[loop] == '%') {
+            //got an escaped char
+            loop++;
+            strncpy(substr, &input[loop], 2);
+            substr[3] = '\0';
+            printf("substr = %s\n", substr); //debug
+            int s = strtol(substr, NULL, 16);
+            printf("s= %x\n", s); //debug
+            loop += 2;
+            sprintf(output, "%c", s);
+            output++;
+        } else {
+            memcpy(output, &input[loop], 1); //copy unescaped chars
+            loop++;
+            output++;
+        }
+    }
+    //insert NULL at the end of the output string
+    output[i++] = '\0';
+}
+//move post string to a buffer, convert funny chars to ascii
+static char *get_post_string(struct pbuf *p, char *destmem, uint16_t destlen, uint16_t srclen, uint16_t src_offset) {
+     // char *w_json1 = (char *)pbuf_get_contiguous(p, tjson, sizeof(tjson), len, t);
+    char *w_ptr = (char *)pbuf_get_contiguous(p, destmem, destlen, srclen, src_offset);
+    if (w_ptr) {
+        //we have now fetched the string
+        memmove(destmem, w_ptr, destlen); //preserve the new json
+        destmem[srclen] = '\0';   //terminate c string
+        squash_hex_string(destmem, destmem); //squash in-place
+        printf("New POST handler destmem=%s\n", destmem);
+        w_ptr = destmem;
+    }
+    return w_ptr;
+}
+//return offset to field and length of value field
+static u16_t check_field(struct pbuf *p, const char *mem, u16_t *len_val) {
+    char *mptr = strstr(mem, "=");
+    u16_t name_offset = 0xFFFF;
+    u16_t len_str = 0xFFFF;
+    if (mptr) {
+        u16_t mem_len = mptr + 1 - mem; //offset to target string, skip "="
+        u16_t value;
+        name_offset = pbuf_memfind(p, mem, mem_len, 0); //find post str name
+        if (name_offset != 0xFFFF) {
+            //we found the post string name
+            value = name_offset + mem_len;
+            u16_t tmp = pbuf_memfind(p, "&", 1, value); //find delimiter
+            if (tmp != 0xFFFF) {
+                len_str = tmp - value;
+            } else {
+                len_str = p->tot_len - value; //last string in post
+            }
+            if ((len_str > 0) && (len_str < LWIP_POST_BUFSIZE)) {
+                name_offset = value;
+            }
+        }
+    }
+    *len_val = len_str;
+    return name_offset;
+}
 err_t
 httpd_post_receive_data(void *connection, struct pbuf *p)
 {
@@ -106,111 +174,59 @@ httpd_post_receive_data(void *connection, struct pbuf *p)
     LWIP_ASSERT("NULL pbuf", p != NULL);
 
     if (current_connection == connection) {
-        u16_t token_user = pbuf_memfind(p, "ssid=", 5, 0);
-        u16_t token_pass = pbuf_memfind(p, "pass=", 5, 0);
-        u16_t token_config = pbuf_memfind(p, "config=", 7, 0);
+        u16_t len_ssid;
+        u16_t len_pass;
+        u16_t len_host;
+        u16_t offset_ssid = check_field(p, "ssid=", &len_ssid);
+        u16_t offset_pass = check_field(p, "pass=", &len_pass);
+        u16_t offset_host = check_field(p, "host=", &len_host);
+        if ((len_ssid > 0) && (len_ssid < LWIP_POST_BUFSIZE) &&
+           (len_pass > 0) && (len_pass < LWIP_POST_BUFSIZE) &&
+           (len_host > 0) && (len_host < LWIP_POST_BUFSIZE))
+        {
+            char *w_ssid = (char *)get_post_string(p, wifi_ssid, sizeof(wifi_ssid), len_ssid, offset_ssid);
+            char *w_pass = (char *)get_post_string(p, wifi_password, sizeof(wifi_password), len_pass, offset_pass);
+            char *w_host = (char *)get_post_string(p, local_host_name, sizeof(local_host_name), len_host, offset_host);
+            if (w_ssid && w_pass && w_host) {
+                memcpy(wifi_ssid, w_ssid, len_ssid); //preserve the new ssid
+                wifi_ssid[len_ssid] = 0;
+                memcpy(wifi_password, w_pass, len_pass);
+                wifi_password[len_pass] = 0;
+                printf("POST handler wifi_ssid=%s wifi_password=%s\n",wifi_ssid, wifi_password);
+                flash_io_write_ssid(wifi_ssid, wifi_password);
+                memcpy(local_host_name, w_host, len_host); //preserve the new ssid
+                local_host_name[len_host] = 0;   //terminate c string
+                printf("POST handler hostname=%s\n", local_host_name);
+                flash_io_write_hostname(local_host_name, len_host);
+                set_host_name(local_host_name);
+                /* ssid and password and hostname are correct, create a "session" */
+                valid_connection = connection;
+            }
 
-        if ((token_user != 0xFFFF) && (token_pass != 0xFFFF) && (token_config != 0xFFFF)) {
-            u16_t value_user = token_user + 5;
-            u16_t value_pass = token_pass + 5;
-            u16_t len_user = 0;
-            u16_t len_pass = 0;
-            u16_t value_config = token_config + 7;
-            u16_t len_config = 0;
-
-            u16_t tmp;
-            /* find ssid len */
-            tmp = pbuf_memfind(p, "&", 1, value_user);
-            if (tmp != 0xFFFF) {
-            len_user = tmp - value_user;
-            } else {
-            len_user = p->tot_len - value_user;
-            }
-            /* find pass len */
-            tmp = pbuf_memfind(p, "&", 1, value_pass);
-            if (tmp != 0xFFFF) {
-            len_pass = tmp - value_pass;
-            } else {
-            len_pass = p->tot_len - value_pass;
-            }
-            tmp = pbuf_memfind(p, "&", 1, value_config);
-            if (tmp != 0xFFFF) {
-                len_config = tmp - value_config;
-            } else {
-                len_config = p->tot_len - value_config;
-            }
-            if ((len_user > 0) && (len_user < LWIP_POST_BUFSIZE) &&
-               (len_pass > 0) && (len_pass < LWIP_POST_BUFSIZE) &&
-               (len_config > 0) && (len_config < LWIP_POST_BUFSIZE))
-               {
-                /* provide contiguous storage if p is a chained pbuf */
-                // char buf_user[LWIP_POST_BUFSIZE];
-                // char buf_pass[LWIP_POST_BUFSIZE];
-                char *w_ssid = (char *)pbuf_get_contiguous(p, wifi_ssid, sizeof(wifi_ssid), len_user, value_user);
-                char *w_pass = (char *)pbuf_get_contiguous(p, wifi_password, sizeof(wifi_password), len_pass, value_pass);
-                char *w_config = (char *)pbuf_get_contiguous(p, local_host_name, sizeof(local_host_name), len_config, value_config);
-
-                if (w_ssid && w_pass && w_config) {
-                    memcpy(wifi_ssid, w_ssid, len_user); //preserve the new ssid
-                    wifi_ssid[len_user] = 0;
-                    memcpy(wifi_password, w_pass, len_pass);
-                    wifi_password[len_pass] = 0;
-                    printf("POST handler wifi_ssid=%s wifi_password=%s\n",wifi_ssid, wifi_password);
-                    flash_io_write_ssid(wifi_ssid, wifi_password);
-                    /* ssid and password are correct, create a "session" */
-                    memcpy(local_host_name, w_config, len_config); //preserve the new ssid
-                    local_host_name[len_config] = 0;   //terminate c string
-                    printf("POST handler hostname=%s\n", local_host_name);
-                    flash_io_write_hostname(local_host_name, len_config);
-                    set_host_name(local_host_name);
-                    valid_connection = connection;
-                }
-            }
         } else {
-            u16_t token_json1 = pbuf_memfind(p, "json1=", 6, 0);
-            if (token_json1 != 0xFFFF) {
-                u16_t value_json1 = token_json1 + 6;
-                u16_t len_json1 = 0;
-                u16_t tmp;
-                tmp = pbuf_memfind(p, "&", 1, value_json1);
-                if (tmp != 0xFFFF) {
-                    len_json1 = tmp - value_json1;
-                } else {
-                    len_json1 = p->tot_len - value_json1;
-                }
-                if ((len_json1 > 0) && (len_json1 < LWIP_POST_BUFSIZE)) {
-                    char *w_json1 = (char *)pbuf_get_contiguous(p, json1, sizeof(json1), len_json1, value_json1);
-                    if (w_json1) {
-                        memcpy(json1, w_json1, len_json1); //preserve the new ssid
-                        json1[len_json1] = 0;   //terminate c string
-                        printf("POST handler json=%s\n", json1);
-                        /* json is correct, set flag for post_finished*/
-                        valid_json = connection;
-                    }
+            u16_t len;
+            u16_t offset = check_field(p, "json1=", &len);
+            if (offset != 0xffff) {
+                char tjson[LWIP_POST_BUFSIZE];
+                char *ts = get_post_string(p, tjson, sizeof(tjson), len, offset);
+                if (ts != NULL) {
+                    /* json is correct, set flag for post_finished*/
+                    printf("json =%s\n", ts);
+                    valid_json = connection;
                 }
             } else {
-                u16_t token_config = pbuf_memfind(p, "config=", 7, 0);
-                if (token_config != 0xFFFF) {
-                    u16_t value_config = token_config + 7;
-                    u16_t len_config = 0;
-                    u16_t tmp;
-                    tmp = pbuf_memfind(p, "&", 1, value_config);
-                    if (tmp != 0xFFFF) {
-                        len_config = tmp - value_config;
-                    } else {
-                        len_config = p->tot_len - value_config;
-                    }
-                    if ((len_config > 0) && (len_config < LWIP_POST_BUFSIZE)) {
-                        char *w_config = (char *)pbuf_get_contiguous(p, local_host_name, sizeof(local_host_name), len_config, value_config);
-                        if (w_config) {
-                            memcpy(local_host_name, w_config, len_config); //preserve the new ssid
-                            local_host_name[len_config] = 0;   //terminate c string
-                            printf("POST handler hostname=%s\n", local_host_name);
-                            flash_io_write_hostname(local_host_name, len_config);
-                            /* set flag for post_finished*/
-                            valid_config = connection;
-                            set_host_name(local_host_name);
-                        }
+                u16_t len;
+                u16_t offset = check_field(p, "config=", &len);
+                if (offset != 0xffff) {
+                    char *ts = get_post_string(p, local_host_name, sizeof(local_host_name), len, offset);
+                    if (ts != NULL) {
+                        /* name is correct, set flag for post_finished*/
+                        printf("POST handler hostname=%s\n", local_host_name);
+                        //record for future use in flash, include '\0'
+                        flash_io_write_hostname(local_host_name, len + 1);
+                        /* set flag for post_finished*/
+                        valid_config = connection;
+                        set_host_name(local_host_name);
                     }
                 }
             }

@@ -25,8 +25,8 @@
           <input type="text" id="ssid" name="ssid" value="yourssid"><br>
           <label for="pass">WIFI password:</label><br>
           <input type="text" id="pass" name="pass" value="Doe"><br><br>
-          <label for="config">Hostname:</label><br>
-          <input type="text" id="config" name="config" value="<!--#host-->"><br>
+          <label for="host">Hostname:</label><br>
+          <input type="text" id="host" name="host" value="<!--#host-->"><br>
           <input type="submit" value="Submit">
         </form>
         <p>If you click the "Submit" button, the form-data will be sent to a post handler page called "/configure".</p>

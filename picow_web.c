@@ -139,16 +139,9 @@ int main() {
     // The delay is up to 3 RTC clock cycles (which is 64us with the default clock settings)
     sleep_us(100);
 
-    int nosids = flash_io_read_ssids(); //find out how many we have
-    if (nosids < 0) {
-        printf("read ssids failure %d", nosids);
-        nosids = 0;
-    }
-    //read last ssid for now
-    err = flash_io_read_ssid(nosids);
     err = flash_io_read_latest_ssid();
 
-    if (err < 0 || nosids == 0) {
+    if (err < 0) {
         //init with default ssid/password - for now from compile, later from flash
         strncpy(wifi_ssid, WIFI_SSID, sizeof(wifi_ssid)-1);
         wifi_ssid[sizeof(wifi_ssid) - 1] = 0;

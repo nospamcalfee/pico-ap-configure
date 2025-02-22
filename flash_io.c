@@ -105,7 +105,17 @@ rb_errors_t flash_io_write_flash_id(int id, uint32_t flash_buf, uint32_t flash_l
     int i;
     int err;
     rb_t trb;
-
+    //first read last entry already in flash
+    err = read_flash_id_latest(id, flash_buf, flash_len);
+    if (err == blen) {
+        //we got something, same length, check if same as the new
+        err = memcmp(pagebuff, buff, blen);
+        if (err == 0) {
+            //exact same data, so do not write the new data
+            printf("no need to write, data is duplicated\n");
+            return 0;
+        }
+    }
     err = rb_recreate(&trb, flash_buf, flash_len / FLASH_SECTOR_SIZE, CREATE_INIT_IF_FAIL);
     if (!(err == RB_OK || err == RB_BLANK_HDR || err == RB_HDR_LOOP)) {
         printf("write reopening flash error %d, quitting\n", err);
@@ -123,6 +133,7 @@ rb_errors_t flash_io_write_flash_id(int id, uint32_t flash_buf, uint32_t flash_l
     if (i / 8 % blen) {
         printf("\n");
     }
+    return blen;
 }
 //for safety write both the ssid and the password as 2 strings to flash
 //write a new ssid/pw pair

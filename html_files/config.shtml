@@ -7,24 +7,17 @@
     </head>
     <body> <h1><!--#host--> Web App</h1>
         <div>
-        <h2>HTML Form change ssid/password</h2>
+        <h2>HTML Form change ssid/password/hostname</h2>
         <form action="/configure" method="POST">
           <label for="ssid">WIFI ssid name:</label><br>
           <input type="text" id="ssid" name="ssid" value="yourssid"><br>
           <label for="pass">WIFI password:</label><br>
           <input type="text" id="pass" name="pass" value="Doe"><br><br>
+          <label for="host">Hostname:</label><br>
+          <input type="text" id="host" name="host" value="<!--#host-->"><br>
           <input type="submit" value="Submit">
         </form>
-        <p>If you click the "Submit" button, wifi info will be changed.</p>
-        </div>
-        <div>
-        <h2>HTML Forms Change hostname</h2>
-        <form action="/config" method="POST">
-          <label for="config">Hostname:</label><br>
-          <input type="text" id="config" name="config" value="<!--#host-->"><br>
-          <input type="submit" value="Submit">
-        </form>
-        <p>If you click the "Submit" button, the Hostname will be permanently changed.</p>
+        <p>If you click the "Submit" button, wifi and hostname info will be changed after the next reboot.</p>
         </div>
    </body>
 </html>
