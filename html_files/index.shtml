@@ -11,15 +11,21 @@
         <p>Voltage: <!--#volt--></p>
         <p>Temp: <!--#temp--> C</p>
         <p>LED is: <!--#led--></p>
+        <p>Relays: <!--#relay--></p>
         <br>
         <h2>This bit is CGI:</h2>
         <a href="/led.cgi?led=1"><button>LED ON</button></a>
         <a href="/led.cgi?led=0"><button>LED OFF</button></a>
         <br>
+        <h2>This bit is CGI:</h2>
+        <a href="/relay.cgi?relay=1"><button>RELAY ON</button></a>
+        <a href="/relay.cgi?relay=0"><button>RELAY OFF</button></a>
+        <br>
         <a href="/index.shtml">Refresh</a>
 
         <div style="display: <!--#disp-->;">
         <h2>HTML Forms</h2>
+        Use ASCII, no special chars!
         <form action="/configure" method="POST">
           <label for="ssid">WIFI ssid name:</label><br>
           <input type="text" id="ssid" name="ssid" value="yourssid"><br>

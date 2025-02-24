@@ -210,10 +210,8 @@ int main() {
     // Infinite loop
     while(1) {
         datetime_t t;
-        relay_put(SPRINKLER_RELAY_GPIO, 0);  //off
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
         sleep_ms(9000);
-        relay_put(SPRINKLER_RELAY_GPIO, 1);  //on
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
         sleep_ms(1000);
         rtc_get_datetime(&t);
