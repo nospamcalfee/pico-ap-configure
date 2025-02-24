@@ -13,6 +13,7 @@
 #include "lwip/apps/sntp.h"
 #include "ring_buffer.h"
 #include "flash_io.h"
+#include "relay_control.h"
 
 void mdns_example_init(void);
 
@@ -121,6 +122,7 @@ int main() {
     int8_t err;
     static char datetime_str[128];
     stdio_init_all();
+    relay_init_mask(); //eventually control from the json file
     // set default Start on Friday 5th of June 2020 15:45:00
     datetime_t t = {
             .year  = 2020,
@@ -208,8 +210,10 @@ int main() {
     // Infinite loop
     while(1) {
         datetime_t t;
+        relay_put(SPRINKLER_RELAY_GPIO, 0);  //off
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
         sleep_ms(9000);
+        relay_put(SPRINKLER_RELAY_GPIO, 1);  //on
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
         sleep_ms(1000);
         rtc_get_datetime(&t);

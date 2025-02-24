@@ -38,6 +38,7 @@ add_executable(${PROGRAM_NAME}
         flash_onboard.c
         ring_buffer.c
         flash_io.c
+        relay_control.c
         )
 
 #target_compile_options(${PROGRAM_NAME} PUBLIC -Werror -Wall -Wextra -Wnull-dereference -Wno-unused-parameter -Wno-null-dereference -ggdb3 -O3)
