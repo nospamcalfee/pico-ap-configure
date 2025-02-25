@@ -20,6 +20,8 @@
         <h2>This bit is CGI:</h2>
         <a href="/relay.cgi?relay=1"><button>RELAY ON</button></a>
         <a href="/relay.cgi?relay=0"><button>RELAY OFF</button></a>
+        <a href="/relay.cgi?relay2=1"><button>RELAY2 ON</button></a>
+        <a href="/relay.cgi?relay2=0"><button>RELAY2 OFF</button></a>
         <br>
         <a href="/index.shtml">Refresh</a>
 

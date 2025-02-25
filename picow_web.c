@@ -134,7 +134,6 @@ int main() {
             .sec   = 00
     };
 
-
     rtc_init();
     rtc_set_datetime(&t);
     // clk_sys is >2000x faster than clk_rtc, so datetime is not updated immediately when rtc_get_datetime() is called.
@@ -177,6 +176,7 @@ int main() {
     set_host_name(local_host_name);
 
     httpd_init();
+
     // Connect to the WiFI network - loop until connected
      while(cyw43_arch_wifi_connect_timeout_ms(wifi_ssid, wifi_password, CYW43_AUTH_WPA2_AES_PSK, 30000) != 0){
         printf("failed to connect...\n");

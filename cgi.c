@@ -27,6 +27,13 @@ const char * cgi_relay_handler(int iIndex, int iNumParams, char *pcParam[], char
         else if(strcmp(pcValue[0], "1") == 0)
             relay_put(SPRINKLER_RELAY_GPIO, 1);
     }
+    if (strcmp(pcParam[0] , "relay2") == 0){
+        // Look at the argument to check if relay is to be turned on (x=1) or off (x=0)
+        if(strcmp(pcValue[0], "0") == 0)
+            relay_put(SPRINKLER_RELAY_GPIOB, 0);
+        else if(strcmp(pcValue[0], "1") == 0)
+            relay_put(SPRINKLER_RELAY_GPIOB, 1);
+    }
     // Send the index page back to the user
     return "/index.shtml";
 }
