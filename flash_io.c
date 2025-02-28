@@ -88,19 +88,6 @@ int read_flash_id_latest(int id, uint32_t flash_buf, uint32_t flash_len){
     return read_flash_id_n(id, flash_buf, flash_len, err);
 }
 
-rb_errors_t flash_io_read_ssids(void){
-    return read_flash_ids(SSID_ID, SSID_BUFF, SSID_LEN);
-}
-
-//read a specific ssid entry
-rb_errors_t flash_io_read_ssid(int n){
-    return read_flash_id_n(SSID_ID, SSID_BUFF, SSID_LEN, n);
-}
-
-rb_errors_t flash_io_read_latest_ssid(void) {
-        return read_flash_id_latest(SSID_ID, SSID_BUFF, SSID_LEN);
-}
-
 rb_errors_t flash_io_write_flash_id(int id, uint32_t flash_buf, uint32_t flash_len, uint8_t *buff, uint32_t blen) {
     int i;
     int err;
@@ -134,6 +121,26 @@ rb_errors_t flash_io_write_flash_id(int id, uint32_t flash_buf, uint32_t flash_l
         printf("\n");
     }
     return blen;
+}
+
+rb_errors_t flash_io_read_ssids(void){
+    return read_flash_ids(SSID_ID, SSID_BUFF, SSID_LEN);
+}
+
+//read a specific ssid entry
+rb_errors_t flash_io_read_ssid(int n){
+    return read_flash_id_n(SSID_ID, SSID_BUFF, SSID_LEN, n);
+}
+
+rb_errors_t flash_io_read_latest_ssid(void) {
+        return read_flash_id_latest(SSID_ID, SSID_BUFF, SSID_LEN);
+}
+
+rb_errors_t flash_io_erase_ssids_hostnames() {
+    rb_t trb;
+    //dangerous routine to erase all the ssid and hostname flash to reinit for user
+    rb_errors_t err = rb_recreate(&trb, SSID_BUFF, SSID_LEN / FLASH_SECTOR_SIZE, CREATE_INIT_ALWAYS);
+    return err;
 }
 //for safety write both the ssid and the password as 2 strings to flash
 //write a new ssid/pw pair

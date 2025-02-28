@@ -9,6 +9,13 @@
 extern uint8_t pagebuff[FLASH_PAGE_SIZE];
 
 /*
+ read all idx from flash. return number of successful reads or negative error
+ status
+*/
+int read_flash_ids(int id, uint32_t flash_buf, uint32_t flash_len);
+//read a specific flash entry entry n
+int read_flash_id_n(int id, uint32_t flash_buf, uint32_t flash_len, int n);
+/*
  read all ssids from flash. return number of successful reads or negative error
  status
 */
@@ -23,4 +30,6 @@ rb_errors_t flash_io_write_ssid(char * ss, char *pw);
 rb_errors_t flash_io_read_latest_ssid(void);
 rb_errors_t flash_io_write_hostname(char *hostname, uint32_t nlen);
 rb_errors_t flash_io_read_latest_hostname(void);
+rb_errors_t flash_io_erase_ssids_hostnames(void);
+int scan_find_ssid();
 #endif //_FLASH_IO_H_

@@ -1,6 +1,7 @@
 #include "lwip/apps/httpd.h"
 #include "pico/cyw43_arch.h"
 #include "relay_control.h"
+#include "flash_io.h"
 
 // CGI handler which is run when a request for /led.cgi is detected
 const char * cgi_led_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[])
@@ -37,6 +38,16 @@ const char * cgi_relay_handler(int iIndex, int iNumParams, char *pcParam[], char
     // Send the index page back to the user
     return "/index.shtml";
 }
+// CGI handler which is run to reset all flash -- very dangerous
+const char * cgi_resflash_handler(int iIndex, int iNumParams, char *pcParam[], char *pcValue[])
+{
+    // Check if an request for resflash has been made (/resflash.cgi)
+    if (strcmp(pcParam[0] , "resflash") == 0) {
+         flash_io_erase_ssids_hostnames();
+    }
+    // Send the index page back to the user
+    return "/index.shtml";
+}
 
 // tCGI Struct
 // Fill this with all of the CGI requests and their respective handlers
@@ -47,6 +58,9 @@ static const tCGI cgi_handlers[] = {
     },
     {
         "/relay.cgi", cgi_relay_handler
+    },
+    {
+        "/resflash.cgi", cgi_resflash_handler
     },
 };
 

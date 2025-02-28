@@ -140,8 +140,24 @@ int main() {
     // The delay is up to 3 RTC clock cycles (which is 64us with the default clock settings)
     sleep_us(100);
 
-    err = flash_io_read_latest_ssid();
+    /*
+        Starting up, first we see if we have any local wifi ssids that match
+        known ones in flash. If not we just try the last entry in flash, if
+        there is no last entry, we use the compiled in defaults. If we cannot
+        connect to any of these 3 we become an AP and get the user to give us
+        the local wifi credentials.
+    */
+    cyw43_arch_init();
+    cyw43_arch_enable_sta_mode();
+    int ssidnumber = scan_find_ssid();
+    cyw43_arch_deinit();
 
+    if (ssidnumber) {
+        //we found a correct ssid, use it.
+        err = flash_io_read_ssid(ssidnumber);
+    } else {
+        err = flash_io_read_latest_ssid();
+    }
     if (err < 0) {
         //init with default ssid/password - for now from compile, later from flash
         strncpy(wifi_ssid, WIFI_SSID, sizeof(wifi_ssid)-1);
@@ -149,7 +165,6 @@ int main() {
         strncpy(wifi_password, WIFI_PASSWORD, sizeof(wifi_password)-1);
         wifi_password[sizeof(wifi_password) - 1] = 0;
         flash_io_write_ssid(wifi_ssid, wifi_password); //write out default
-        flash_io_read_ssids(); //for debug
     } else {
         // we have the raw data in pagebuff, move to ssid/pw
         int s1len = strlen(pagebuff) + 1;

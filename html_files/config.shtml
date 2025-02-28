@@ -6,6 +6,8 @@
         <link rel="icon" href="favicon.ico" type="image/x-icon">
     </head>
     <body> <h1><!--#host--> Web App</h1>
+        <h2> Used mainly for debug!!!!</h2>
+        Should not be necessary for normal use.
         <div>
         <h2>HTML Form change ssid/password/hostname</h2>
         <form action="/configure" method="POST">
@@ -18,6 +20,9 @@
           <input type="submit" value="Submit">
         </form>
         <p>If you click the "Submit" button, wifi and hostname info will be changed after the next reboot.</p>
+        <br><br>
+        <h2>Very dangerous, rarely necessary, erase all the ssids and hostnames in flash!</h2>
+        <a href="/resflash.cgi?resflash=1"><button>ERASE ALL CONFIG!</button></a>
         </div>
    </body>
 </html>
