@@ -6,6 +6,7 @@
 #define SSID_LEN __PERSISTENT_LEN
 #define SSID_ID 0x01
 //need a pagebuff to do a write/delete but it is not needed between calls, everyone can use it.
+//for this api, assumes all i/o will be smaller than FLASH_PAGE_SIZE
 extern uint8_t pagebuff[FLASH_PAGE_SIZE];
 
 /*
