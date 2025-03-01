@@ -142,6 +142,34 @@ rb_errors_t flash_io_erase_ssids_hostnames() {
     rb_errors_t err = rb_recreate(&trb, SSID_BUFF, SSID_LEN / FLASH_SECTOR_SIZE, CREATE_INIT_ALWAYS);
     return err;
 }
+//man, maintaining a clean flash is tough. Remove ssids with replaced passwords from flash
+rb_errors_t flash_io_erase_redundant_ssids(char *ss) {
+    rb_t rb;
+    int sslen = strlen(ss);
+    rb_errors_t terr = rb_recreate(&rb, SSID_BUFF, SSID_LEN / FLASH_SECTOR_SIZE, CREATE_FAIL);
+    if (!(terr == RB_OK || terr == RB_BLANK_HDR || terr == RB_HDR_LOOP)) {
+        printf("reopening flash error %d, quitting\n", terr);
+        exit(1); //should never happen
+    }
+
+    if (terr > 0 && sslen) {
+        //we wrote something, erase any earlier passwords, if they exist
+        int noids = flash_io_read_ssids(); //find all ssids
+        for (int i = 0; i < noids - 1; i++) {
+            rb_errors_t res = rb_delete(&rb, SSID_ID, ss, sslen, pagebuff);
+            // int res = rb_find(&rb, SSID_ID, ss, sslen, pagebuff);
+            if (res < 0) {
+                //some error
+                printf("some find failure %d looking for \"%s\"\n", -res, ss);
+            } else {
+                printf("rb_delete erasing at 0x%lx\n%s\n", rb.next, ss);
+                // res = rb_smudge(&rb, res); //this deletes the entry
+            }
+        }
+    }
+    return terr;
+}
+
 //for safety write both the ssid and the password as 2 strings to flash
 //write a new ssid/pw pair
 rb_errors_t flash_io_write_ssid(char * ss, char *pw) {
@@ -155,9 +183,9 @@ rb_errors_t flash_io_write_ssid(char * ss, char *pw) {
     memcpy(tempssid + s1len, pw, s2len);
 
     rb_errors_t terr =  flash_io_write_flash_id(SSID_ID, SSID_BUFF, SSID_LEN, tempssid, s1len+s2len);
-
-    printf("finally wrote ssid 0x%x stat=%d ssid=%s pw=%s\n",
-            SSID_ID, terr, tempssid, tempssid + s1len);
+    if (terr > 0) {
+        flash_io_erase_redundant_ssids(ss);
+    }
     return terr;
 }
 

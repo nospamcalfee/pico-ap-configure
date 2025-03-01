@@ -4,7 +4,7 @@
 #include "pico/cyw43_arch.h"
 #include "flash_io.h"
 
-static uint32_t ssid_found; //hack for which ssid matches
+static uint32_t ssid_found; //which ssid matches
 
 //function to find ssid in flash return match number
 static int scan_search(const uint8_t *ssid){
@@ -25,8 +25,7 @@ static int scan_search(const uint8_t *ssid){
             if (ssid_len == flash_len) {
                 if (!memcmp(ssid, pagebuff, ssid_len)) {
                     //we have a match
-                    ssid_found = i; //return after scan
-                    printf("scan match %d ssid#=%d\n", i, ssid_found);
+                    printf("scan match ssid#=%d\n", i);
                     return i;   //return entry number
                 }
             }
@@ -46,9 +45,9 @@ static int scan_result(void *env, const cyw43_ev_scan_result_t *result) {
             int found = scan_search(result->ssid);
             if (found) {
                 printf("stop scan %d ssid#=%d\n", found, ssid_found);
-                cyw43_t *self = env;    //fixme this is nasty, but abort the search
-                self->wifi_scan_state = 2; //this will stop it until the api gets fixed
-                return ssid_found;   //return scan result
+                uint32_t *t = env;
+                *t = found; //return entry number
+                return 0;   //return scan result
             }
         }
     }
@@ -58,21 +57,23 @@ static int scan_result(void *env, const cyw43_ev_scan_result_t *result) {
 //return flash entry number for matching ssid
 int scan_find_ssid() {
     bool scan_in_progress = false;
+    ssid_found = 0; //clear found flag
     while(true) {
         if (!scan_in_progress) {
             cyw43_wifi_scan_options_t scan_options = {0};
             //ok start the scan, returns callback return value, or error
-            int err = cyw43_wifi_scan(&cyw43_state, &scan_options, NULL, scan_result);
+            int err = cyw43_wifi_scan(&cyw43_state, &scan_options, &ssid_found, scan_result);
             if (err == 0) {
                 printf("\nPerforming wifi scan\n");
                 scan_in_progress = true;
             } else {
                 printf("Failed to start scan: %d\n", err);
+                hard_assert(true);
             }
         } else  //scan is going on, see if done.
-            if (!cyw43_wifi_scan_active(&cyw43_state)) {
+            if (!cyw43_wifi_scan_active(&cyw43_state) || ssid_found) {
                 scan_in_progress = false; 
-                return 1;
+                return ssid_found;
         }
     }
     return 0;
