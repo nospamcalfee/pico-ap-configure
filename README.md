@@ -20,8 +20,8 @@ The first step was to do a generic, small footprint, target somewhat
 independent (easily ported?), flash file system handler. See
 https://github.com/nospamcalfee/ringbuffer
 
-Next step is initing a system for ssid/password/ip/mask. That is this
-project. I also incorporated the mdns stuff in this test.
+Next step is initing a system for ssid/password/ip/mask. I also incorporated
+the mdns stuff in this test.
 https://github.com/nospamcalfee/pico-ap-configure
 
 
@@ -35,13 +35,12 @@ user can use a browser to connect to the pico-w ap website at default
 and fixed-netmask.
 
 I took the gherlein app and made it standalone. Then expanded to include
-entering SSID and password and optional IP and Mask. Then I added cgi POST
-processing which I needed for my app, and is already needed for the AP
-ssid etc entry anyway.
+entering SSID and password. Then I added cgi POST processing which I needed
+for my app, and is already needed for the AP ssid etc entry anyway.
 
 The cgi POST processing is already in the sdk, but the post_example.c is
-pretty vague. The prime example in this project is how POST works and how an
-AP works.
+pretty vague. A prime example in this project is how POST works and how an AP
+works.
 
 To actually create or test an iot device that needs to start in ap mode, just
 give an invalid WIFI_SSID or WIFI_PASSWORD in the cmake command. Then after
@@ -77,12 +76,12 @@ IP/Mask to be used. I have not done that yet, maybe later, but it is a simple
 extension of this example's POST handling.
 
 I need better error retries. All comms should be timed out and retried a few
-times. If I don't get ntp time, I cannot do regular sprinkler timing. Problems
+times. If I don't get ntp time, I cannot do regular IOT timing. Problems
 need to be reported on the web page - like no ntp or no comm. The no comm is
 from another timer who cannot communicate, but is on the wifi.
 
 I need watchdog reset - like an arcade game, the only big sin is not not be
-ready for a coin or in this case sprinkler time.
+ready for a coin or in this case IOT time handling.
 
 Devices should periodically check if they have the latest schedule and are out
 of date to a comm error or power was off etc.
@@ -127,8 +126,8 @@ cmake  -DWIFI_SSID="yourwifi" -DWIFI_PASSWORD="1234567890" -DHOSTNAME="test" -DC
 make
 ```
 
-Once built, the `picow_access_point.uf2` file can be dragged and dropped onto
-your Raspberry Pi Pico W to install and run the example. If your network
+Once built, the `picow_webapp.uf2` file can be dragged and dropped onto your
+Raspberry Pi Pico W to install and run the example. If your network
 ssid/password are correct, or after you set them in the ap mode, you can then
 access the application html using the mdns name (in this cmake hostname
 example) as test.local

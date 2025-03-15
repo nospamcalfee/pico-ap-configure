@@ -18,11 +18,11 @@ project(${PROGRAM_NAME})
 pico_sdk_init()
 
 
-message("Running makefsdata python script")
-execute_process(COMMAND
-    python3 makefsdata.py
-    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
-)
+#message("Running makefsdata python script")
+#execute_process(COMMAND
+#    python3 makefsdata.py
+#    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
+#)
 
 add_executable(${PROGRAM_NAME}
         picow_web.c
@@ -44,9 +44,11 @@ add_executable(${PROGRAM_NAME}
 
 #target_compile_options(${PROGRAM_NAME} PUBLIC -Werror -Wall -Wextra -Wnull-dereference -Wno-unused-parameter -Wno-null-dereference -ggdb3 -O3)
 
-target_compile_options(${PROGRAM_NAME} PUBLIC -ggdb3 -O0 -UNDEBUG)
+target_compile_options(${PROGRAM_NAME} PUBLIC -ggdb3)
 
-string(APPEND CMAKE_EXE_LINKER_FLAGS "-Wl,--print-memory-usage -Wl,--cref")
+string(APPEND CMAKE_EXE_LINKER_FLAGS "-Wl,--print-memory-usage")
+#sometimes useful:  -Wl,--print-gc-sections
+#sometimes useful:  -Wl,--cref
 
 pico_set_linker_script(${PROGRAM_NAME} ${CMAKE_SOURCE_DIR}/memmap_custom.ld)
 
@@ -73,6 +75,17 @@ target_link_libraries(${PROGRAM_NAME}
         pico_rand
         hardware_rtc
         pico_lwip_sntp
+        pico_httpd_content
+        )
+
+pico_add_library(pico_httpd_content NOFLAG)
+pico_set_lwip_httpd_content(pico_httpd_content INTERFACE
+        ${CMAKE_CURRENT_LIST_DIR}/html_files/index.shtml
+        ${CMAKE_CURRENT_LIST_DIR}/html_files/config.shtml
+        ${CMAKE_CURRENT_LIST_DIR}/html_files/page2.shtml
+        ${CMAKE_CURRENT_LIST_DIR}/html_files/ip_config.js
+        ${CMAKE_CURRENT_LIST_DIR}/html_files/sprajax.js
+        ${CMAKE_CURRENT_LIST_DIR}/html_files/favicon.ico
         )
 
 pico_add_extra_outputs(${PROGRAM_NAME})

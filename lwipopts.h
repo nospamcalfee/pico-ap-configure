@@ -102,7 +102,7 @@
 #define LWIP_HTTPD_SUPPORT_POST 1
 #define LWIP_HTTPD_POST_MANUAL_WND 1
 #define LWIP_HTTPD_EXAMPLE_GENERATEDFILES 1
-#define HTTPD_FSDATA_FILE "htmldata.c"
+#define HTTPD_FSDATA_FILE "pico_fsdata.inc"
 //get hostname from the make invocation:
 #define CYW43_HOST_NAME HOSTNAME
 
