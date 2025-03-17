@@ -12,7 +12,7 @@ const char * const application_ssi_tags[] = { RUN_STATE_NAMES };
 #undef C
 
 // SSI tags - tag length limited to 8 bytes by default
-#define TAG_NAMES C(dtime)C(host)C(volt)C(relay)C(temp)C(led)C(disp)C(ntpready)
+#define TAG_NAMES C(dtime)C(host)C(volt)C(relay)C(temp)C(led)
 #define C(x) x,
 enum ssi_tag_enum { TAG_NAMES };
 #undef C
@@ -21,8 +21,7 @@ static const char * ssi_tags_name[] = { TAG_NAMES };
 #undef C
 
 char local_host_name[20];
-// const char * ssi_tags[] = {"volt","temp","led", "disp", "ntpready"};
-uint8_t ssi_state; //0 is we don't have ntp time yet.
+// const char * ssi_tags[] = {"volt","temp","led", etc};
 
 short unsigned int ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
   size_t printed;
@@ -82,25 +81,6 @@ short unsigned int ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       }
     }
     break;
-  case disp:
-    {
-      if (ssi_state == RUN_STATE_ACCESS_POINT) {
-        printed = snprintf(pcInsert, iInsertLen, "block");
-      } else {
-        printed = snprintf(pcInsert, iInsertLen, "none");
-      }
-
-    }
-  break;
-  case ntpready:
-    {
-      if (ssi_state == RUN_STATE_APPLICATION) { //we have ntp time
-        printed = snprintf(pcInsert, iInsertLen, "block");
-      } else {
-        printed = snprintf(pcInsert, iInsertLen, "none");
-      }
-    }
-    break;
   default:
     printed = 0;
     break;
@@ -116,6 +96,5 @@ void ssi_init(enum app_run_state dispset) {
   adc_init();
   adc_set_temp_sensor_enabled(true);
   adc_select_input(4);
-  ssi_state = dispset;
   http_set_ssi_handler(ssi_handler, ssi_tags_name, LWIP_ARRAYSIZE(ssi_tags_name));
 }
