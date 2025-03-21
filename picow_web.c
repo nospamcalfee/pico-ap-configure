@@ -97,7 +97,7 @@ void be_access_point(char *ap_name) {
     dns_server_t dns_server;
     dns_server_init(&dns_server, &post_state->gw);
     // wait until user sets a ssid/password
-    for (int i = 0; i < 60; i++) {
+    for (int i = 0; i < 3*60; i++) {
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
         sleep_ms(900);
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
@@ -115,7 +115,6 @@ void be_access_point(char *ap_name) {
     // tcp_server_close(post_state);
     dns_server_deinit(&dns_server);
     dhcp_server_deinit(&dhcp_server);
-    // free(post_state);
     cyw43_arch_disable_ap_mode();
 }
 int main() {
@@ -136,8 +135,9 @@ int main() {
 
     rtc_init();
     rtc_set_datetime(&t);
-    // clk_sys is >2000x faster than clk_rtc, so datetime is not updated immediately when rtc_get_datetime() is called.
-    // The delay is up to 3 RTC clock cycles (which is 64us with the default clock settings)
+    // clk_sys is >2000x faster than clk_rtc, so datetime is not updated
+    // immediately when rtc_get_datetime() is called. The delay is up to 3
+    // RTC clock cycles (which is 64us with the default clock settings)
     sleep_us(100);
 
     /*

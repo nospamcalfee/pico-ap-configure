@@ -40,7 +40,7 @@ static int scan_result(void *env, const cyw43_ev_scan_result_t *result) {
             result->ssid, result->rssi, result->channel,
             result->bssid[0], result->bssid[1], result->bssid[2], result->bssid[3], result->bssid[4], result->bssid[5],
             result->auth_mode);
-        if (result->rssi > -70) {
+        if (result->rssi > -80) {
             //ignore weak wifi signals
             int found = scan_search(result->ssid);
             if (found) {

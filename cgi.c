@@ -66,5 +66,5 @@ static const tCGI cgi_handlers[] = {
 
 void cgi_init(void)
 {
-    http_set_cgi_handlers(cgi_handlers, sizeof(cgi_handlers)/sizeof(cgi_handlers[0]));
+    http_set_cgi_handlers(cgi_handlers, LWIP_ARRAYSIZE(cgi_handlers));
 }

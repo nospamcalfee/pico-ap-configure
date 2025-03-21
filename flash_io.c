@@ -8,8 +8,11 @@
 #define NAME_LEN __PERSISTENT_LEN
 #define SSID_ID 0x01
 #define HOSTNAME_ID 0x02
-//need a pagebuff to do a write/delete but it is not needed between calls, everyone can use it.
-//for this api, assumes all i/o will be smaller than FLASH_PAGE_SIZE
+/*
+ need a pagebuff to do a write/delete but it is not needed between calls,
+ everyone can use it. for this api, assumes all i/o will be smaller than
+ FLASH_PAGE_SIZE
+*/
 uint8_t pagebuff[FLASH_PAGE_SIZE];
 
 /*
@@ -21,7 +24,7 @@ int read_flash_ids(int id, uint32_t flash_buf, uint32_t flash_len){
     rb_t rb;
 
     err = rb_recreate(&rb, flash_buf, flash_len / FLASH_SECTOR_SIZE, CREATE_INIT_IF_FAIL);
-    if (!(err == RB_OK || err == RB_BLANK_HDR || err == RB_HDR_LOOP)) {
+    if (!(err == RB_OK)) {
         printf("reopening flash error %d, quitting\n", err);
         return -err;
     }
@@ -52,7 +55,7 @@ int read_flash_id_n(int id, uint32_t flash_buf, uint32_t flash_len, int n){
     rb_t rb;
 
     err = rb_recreate(&rb, flash_buf, flash_len / FLASH_SECTOR_SIZE, CREATE_INIT_IF_FAIL);
-    if (!(err == RB_OK || err == RB_BLANK_HDR || err == RB_HDR_LOOP)) {
+    if (!(err == RB_OK)) {
         printf("reopening flash error %d, quitting\n", err);
         return -err;
     }
@@ -105,7 +108,7 @@ rb_errors_t flash_io_write_flash_id(int id, uint32_t flash_buf, uint32_t flash_l
         }
     }
     err = rb_recreate(&trb, flash_buf, flash_len / FLASH_SECTOR_SIZE, CREATE_INIT_IF_FAIL);
-    if (!(err == RB_OK || err == RB_BLANK_HDR || err == RB_HDR_LOOP)) {
+    if (!(err == RB_OK)) {
         printf("write reopening flash error %d, quitting\n", err);
         return -err;
     }
@@ -148,7 +151,7 @@ rb_errors_t flash_io_erase_redundant_ssids(char *ss) {
     rb_t rb;
     int sslen = strlen(ss);
     rb_errors_t terr = rb_recreate(&rb, SSID_BUFF, SSID_LEN / FLASH_SECTOR_SIZE, CREATE_FAIL);
-    if (!(terr == RB_OK || terr == RB_BLANK_HDR || terr == RB_HDR_LOOP)) {
+    if (!(terr == RB_OK)) {
         printf("reopening flash error %d, quitting\n", terr);
         exit(1); //should never happen
     }

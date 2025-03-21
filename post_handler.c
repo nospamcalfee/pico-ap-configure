@@ -59,7 +59,7 @@ const char * const post_html_tags[] = { POST_NAMES };
 
 char wifi_ssid[LWIP_POST_BUFSIZE];
 char wifi_password[LWIP_POST_BUFSIZE];
-char json1[LWIP_POST_BUFSIZE];
+// char json1[LWIP_POST_BUFSIZE];
 int config_changed; //set to zero, watch for non-zero from POST handler
 
 //fixme this strange racy connection stuff needs to be figured out for the ap
@@ -110,7 +110,7 @@ void squash_hex_string(char* input, char* output)
             //got an escaped char
             loop++;
             strncpy(substr, &input[loop], 2);
-            substr[3] = '\0';
+            substr[2] = '\0';
             printf("substr = %s\n", substr); //debug
             int s = strtol(substr, NULL, 16);
             printf("s= %x\n", s); //debug
@@ -205,29 +205,17 @@ httpd_post_receive_data(void *connection, struct pbuf *p)
 
         } else {
             u16_t len;
-            u16_t offset = check_field(p, "json1=", &len);
+            u16_t offset = check_field(p, "config=", &len);
             if (offset != 0xffff) {
-                char tjson[LWIP_POST_BUFSIZE];
-                char *ts = get_post_string(p, tjson, sizeof(tjson), len, offset);
+                char *ts = get_post_string(p, local_host_name, sizeof(local_host_name), len, offset);
                 if (ts != NULL) {
-                    /* json is correct, set flag for post_finished*/
-                    printf("json =%s\n", ts);
-                    valid_json = connection;
-                }
-            } else {
-                u16_t len;
-                u16_t offset = check_field(p, "config=", &len);
-                if (offset != 0xffff) {
-                    char *ts = get_post_string(p, local_host_name, sizeof(local_host_name), len, offset);
-                    if (ts != NULL) {
-                        /* name is correct, set flag for post_finished*/
-                        printf("POST handler hostname=%s\n", local_host_name);
-                        //record for future use in flash, include '\0'
-                        flash_io_write_hostname(local_host_name, len + 1);
-                        /* set flag for post_finished*/
-                        valid_config = connection;
-                        set_host_name(local_host_name);
-                    }
+                    /* name is correct, set flag for post_finished*/
+                    printf("POST handler hostname=%s\n", local_host_name);
+                    //record for future use in flash, include '\0'
+                    flash_io_write_hostname(local_host_name, len + 1);
+                    /* set flag for post_finished*/
+                    valid_config = connection;
+                    set_host_name(local_host_name);
                 }
             }
         }
