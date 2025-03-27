@@ -3,6 +3,7 @@
 #include "pico/stdlib.h"
 #include "pico/cyw43_arch.h"
 #include "flash_io.h"
+#include "cdll.h"
 
 static uint32_t ssid_found; //which ssid matches
 
@@ -76,5 +77,112 @@ int scan_find_ssid() {
                 return ssid_found;
         }
     }
+    return 0;
+}
+struct my_scan_result {
+    uint8_t ssid[32];   ///< wlan access point name
+    uint16_t channel;   ///< wifi channel
+    int16_t rssi;       ///< signal strength
+};
+struct my_params{
+    bool found;
+    struct cdll ll;
+    struct my_scan_result res;
+};
+
+static struct cdll knownnodes;
+
+#define cast_cdll_to_my_params(pt) (cast_p_to_outer( \
+            struct cdll *, pt, \
+            struct my_params, ll))
+
+
+static int scan_all_result(void *env, const cyw43_ev_scan_result_t *result) {
+    if (result) {
+        printf("ssid: %-32s rssi: %4d chan: %3d mac: %02x:%02x:%02x:%02x:%02x:%02x sec: %u\n",
+            result->ssid, result->rssi, result->channel,
+            result->bssid[0], result->bssid[1], result->bssid[2], result->bssid[3], result->bssid[4], result->bssid[5],
+            result->auth_mode);
+        struct my_params *listtest = calloc(1, sizeof(*listtest));
+        // free(listtest);
+        // listtest = calloc(1, sizeof(*listtest));
+        cdll_init(&listtest->ll);
+        memcpy(listtest->res.ssid, result->ssid, sizeof(listtest->res.ssid)); //make a copy of the returned struct
+        listtest->res.channel = result->channel;
+        listtest->res.rssi = result->rssi;
+        cdll_insert_node_tail(&listtest->ll, &knownnodes);
+        printf("scanlist %p ll=%p\n",  listtest, &listtest->ll);
+    }
+    return 0;
+}
+static void printlist(struct cdll *p)
+{
+    struct cdll *ll;
+    struct my_params *test;
+    struct my_scan_result *result;
+    cdll_for_each(ll, p) {
+        test = cast_cdll_to_my_params(ll);
+        result = &test->res;
+        printf("list ssid: %-32s rssi: %4d chan: %3d\n",
+            result->ssid, result->rssi, result->channel);
+        printf("list %p ll=%p\n", test, ll);
+    }
+
+}
+static void removelist(volatile struct cdll *p)
+{
+    struct cdll *vlist;
+    struct my_params *test;
+    // struct my_params *listtest = calloc(1, sizeof(*listtest));
+    // free(listtest);
+    // cdll_for_each(vlist,  &knownnodes) {
+    // for (vlist = (&knownnodes)->next; vlist != (&knownnodes); vlist = vlist->next) {
+        // test = cast_cdll_to_my_params(vlist);
+        // printf("fifo delete %p ll=%p known=%p\n", test, vlist, knownnodes.next);
+        // cdll_delete_node(vlist);
+        // free(test);
+        // free(cast_cdll_to_my_params(vlist));
+    // }
+    //cannot use cdll_for_each because loop uses freed pointer
+    struct cdll *next_vlist = (&knownnodes);
+    for (vlist = (&knownnodes)->next; vlist != (&knownnodes); vlist = next_vlist) {
+        test = cast_cdll_to_my_params(vlist);
+        next_vlist = vlist->next;
+        printf("fifo delete %p ll=%p known=%p\n", vlist, next_vlist, knownnodes.next);
+        cdll_delete_node(vlist);
+        free(cast_cdll_to_my_params(vlist));
+    }
+}
+
+/*
+    return 0 if all ssids have been scanned
+*/
+    // struct cddl localll;
+int scan_find_all_ssids() {
+    // struct cdll *ll = &localll;
+    cdll_init(&knownnodes); //init parent
+    // cdll_init(ll);  //get my list ready
+
+    if (cyw43_arch_init()) {
+        printf("failed to initialise\n");
+        return 1;
+    }
+
+    cyw43_arch_enable_sta_mode();
+
+    struct my_params params = { false, &knownnodes};
+    cyw43_wifi_scan_options_t scan_options = {0};
+    printf("\nPerforming wifi scan and list\n");
+    int err = cyw43_wifi_scan(&cyw43_state, &scan_options, &params, scan_all_result);
+    hard_assert(err == 0);
+
+    while (cyw43_wifi_scan_active(&cyw43_state)) {
+        // cyw43_arch_poll();
+        // cyw43_arch_wait_for_work_until(make_timeout_time_ms(1000));
+        sleep_ms(1000);
+    }
+    cyw43_arch_deinit();
+    printlist(&knownnodes);
+    removelist(&knownnodes);
     return 0;
 }

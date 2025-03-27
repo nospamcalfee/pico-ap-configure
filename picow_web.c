@@ -117,6 +117,7 @@ void be_access_point(char *ap_name) {
     dhcp_server_deinit(&dhcp_server);
     cyw43_arch_disable_ap_mode();
 }
+int scan_find_all_ssids();
 int main() {
     int8_t err;
     static char datetime_str[128];
@@ -140,6 +141,7 @@ int main() {
     // RTC clock cycles (which is 64us with the default clock settings)
     sleep_us(100);
 
+    scan_find_all_ssids();
     /*
         Starting up, first we see if we have any local wifi ssids that match
         known ones in flash. If not we just try the last entry in flash, if

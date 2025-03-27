@@ -51,4 +51,20 @@ void cdll_insert_node_head(struct cdll *newnode, struct cdll *head);
 void cdll_insert_node_tail(struct cdll *newnode, struct cdll *head);
 void cdll_delete_node(struct cdll *list);
 
+/**
+ * cast_p_to_outer - cast a pointer to an outer, containing struct
+ * @ptype:The type of pointer (ie member type)
+ * @ptr:The pointer to the member
+ * @mtype:The type of the outer, container
+ * @mname:The name of the member in outer struct (ptr is pointing at it)
+ *
+ * This uses a portable (no GNU extension) method of casting
+ * All types are checked. Trust the C optimizer
+ */
+#define cast_p_to_outer(ptype, ptr, mtype, mname) (\
+    ((ptype) ptr == ptr) ? \
+    (mtype *)( (char *)ptr - offsetof(mtype, mname) ) \
+    : NULL \
+)
+
 #endif //__CDLL_INFRA_H__
