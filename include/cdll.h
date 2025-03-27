@@ -24,6 +24,9 @@ struct cdll {
     struct cdll *next;
     struct cdll *prev;
 };
+//note both iterators below use current ll ptr, it is a problem if node is
+//deleted and memory is changed see defs below. It is a case of using memory
+//that has been deleted, not always safe.
 #define cdll_for_each(pos, head) \
         for (pos = (head)->next; pos != (head); pos = pos->next)
 
