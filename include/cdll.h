@@ -33,6 +33,8 @@ struct cdll {
 #define cdll_for_each_rev(pos, head) \
         for (pos = (head)->prev; pos != (head); pos = pos->prev)
 
+#define cdll_empty(head) ((head) == (head)->next)
+
 void cdll_init(struct cdll *listhead);
 /*
  * cdll_insert_node_head - add a new entry

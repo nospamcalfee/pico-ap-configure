@@ -14,6 +14,7 @@
 #include "ring_buffer.h"
 #include "flash_io.h"
 #include "relay_control.h"
+#include "find_local_ssid.h"
 
 void mdns_example_init(void);
 
@@ -117,7 +118,7 @@ void be_access_point(char *ap_name) {
     dhcp_server_deinit(&dhcp_server);
     cyw43_arch_disable_ap_mode();
 }
-int scan_find_all_ssids();
+
 int main() {
     int8_t err;
     static char datetime_str[128];
