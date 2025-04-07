@@ -99,7 +99,7 @@ void be_access_point(char *ap_name) {
     dns_server_init(&dns_server, &post_state->gw);
     // wait until user sets a ssid/password
     //fixme needs to be pretty long for a user, but for test, short
-    for (int i = 0; i < 1 + 0*60; i++) {
+    for (int i = 0; i < 1 + 3*60; i++) {
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
         sleep_ms(900);
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
