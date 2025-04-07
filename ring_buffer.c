@@ -594,7 +594,7 @@ rb_errors_t rb_delete(rb_t *rb, uint8_t id, const void *data, uint32_t size, uin
     int res = rb_find(rb, id, data, size, pagebuffer);
     if (res < 0) {
         //some error
-        printf("some find failure %d looking for \"%s\"\n", -res, (char *) data);
+        printf("some delete find failure %d looking for \"%s\"\n", -res, (char *) data);
     } else {
         printf("rb_delete erasing at 0x%lx\n%s\n", rb->next, (char *) data);
         res = rb_smudge(rb, res); //this deletes the entry

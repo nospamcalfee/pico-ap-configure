@@ -161,13 +161,45 @@ rb_errors_t flash_io_erase_redundant_ssids(char *ss) {
         int noids = flash_io_read_ssids(); //find all ssids
         for (int i = 0; i < noids - 1; i++) {
             rb_errors_t res = rb_delete(&rb, SSID_ID, ss, sslen, pagebuff);
-            // int res = rb_find(&rb, SSID_ID, ss, sslen, pagebuff);
-            if (res < 0) {
-                //some error
-                printf("some find failure %d looking for \"%s\"\n", -res, ss);
-            } else {
-                printf("rb_delete erasing at 0x%lx\n%s\n", rb.next, ss);
-                // res = rb_smudge(&rb, res); //this deletes the entry
+        }
+    }
+    return terr;
+}
+//find matching ssid in flash.
+//return negative error or 0 ok, and return password for my entry data
+rb_errors_t flash_io_find_matching_ssid(char *ss, char *pw) {
+    rb_t rb;
+    int sslen = strlen(ss);
+    //make sure only one ssid for this ss exists in flash
+    rb_errors_t terr = flash_io_erase_redundant_ssids(ss);
+    if (terr) {
+        printf("finding flash error %d, quitting\n", terr);
+        return terr;
+    }
+
+    terr = rb_recreate(&rb, SSID_BUFF, SSID_LEN / FLASH_SECTOR_SIZE, CREATE_FAIL);
+    if (terr != RB_OK) {
+        printf("reopening finding flash error %d, quitting\n", terr);
+        exit(1); //should never happen
+    }
+
+    while (terr >= 0 && sslen) {
+        terr = rb_find(&rb, SSID_ID, ss, sslen, pagebuff);
+        if (terr < 0) {
+            //some error
+            printf("some find failure %d looking for \"%s\"\n", -terr, ss);
+            break; //exit loop on failure
+        } else {
+            //we found a matching ssid, return its password, first read flash
+            rb.next = terr; //use returned find offset
+            rb_read(&rb, SSID_ID, pagebuff, sizeof(pagebuff));
+            int ssidlen = strlen(pagebuff);
+            printf("find AP found %s pw %s\n", pagebuff, pagebuff + ssidlen + 1);
+            if (sslen == ssidlen) {
+                int pwlen = strlen(pagebuff + ssidlen + 1);
+                //copy buffered password and its \0 terminator
+                memcpy(pw, pagebuff + ssidlen + 1, pwlen + 1);
+                break;
             }
         }
     }

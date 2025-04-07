@@ -42,7 +42,7 @@ static int scan_result(void *env, const cyw43_ev_scan_result_t *result) {
             result->ssid, result->rssi, result->channel,
             result->bssid[0], result->bssid[1], result->bssid[2], result->bssid[3], result->bssid[4], result->bssid[5],
             result->auth_mode);
-        if (result->rssi > -80) {
+        if (result->rssi < LOCAL_SCAN_MIN_RSSI) {
             //ignore weak wifi signals
             int found = scan_search(result->ssid);
             if (found) {
@@ -80,16 +80,6 @@ int scan_find_ssid() {
     }
     return 0;
 }
-struct my_scan_result {
-    uint8_t ssid[32];   ///< wlan access point name
-    uint16_t channel;   ///< wifi channel
-    int16_t rssi;       ///< signal strength
-};
-struct my_params{
-    bool found;
-    struct cdll ll;
-    struct my_scan_result res;
-};
 
 #define cast_cdll_to_my_params(pt) (cast_p_to_outer( \
             struct cdll *, pt, \
@@ -140,6 +130,11 @@ static int scan_all_result(void *env, const cyw43_ev_scan_result_t *result) {
             result->ssid, result->rssi, result->channel,
             result->bssid[0], result->bssid[1], result->bssid[2], result->bssid[3], result->bssid[4], result->bssid[5],
             result->auth_mode);
+        if (result->rssi < LOCAL_SCAN_MIN_RSSI) {
+            printf("scan AP too weak %d\n", result->rssi);
+            return 0;
+        }
+
         if (unique_ssid(result->ssid)) {
             uniq = 1;
         }
@@ -172,9 +167,9 @@ static void printlist(struct cdll *p)
     cdll_for_each(ll, p) {
         test = cast_cdll_to_my_params(ll);
         result = &test->res;
-        printf("list ssid: %-32s rssi: %4d chan: %3d\n",
+        printf("printlist ssid: %-32s rssi: %4d chan: %3d\n",
             result->ssid, result->rssi, result->channel);
-        printf("list %p ll=%p\n", test, ll);
+        printf("printlist %p ll=%p\n", test, ll);
     }
 
 }
@@ -197,11 +192,10 @@ void removelist(struct cdll *p)
 /*
     return 0 if all ssids have been scanned, or failure code
 */
-int scan_find_all_ssids()
+int scan_find_all_ssids(void)
 {
-    // struct cdll *ll = &localll;
     cdll_init(&knownnodes); //init parent
-    // cdll_init(ll);  //get my list ready
+    cyw43_arch_deinit();
 
     if (cyw43_arch_init()) {
         printf("failed to initialise\n");
@@ -221,8 +215,40 @@ int scan_find_all_ssids()
         // cyw43_arch_wait_for_work_until(make_timeout_time_ms(1000));
         sleep_ms(1000);
     }
-    cyw43_arch_deinit();
     printlist(&knownnodes);
-    removelist(&knownnodes);
+    // removelist(&knownnodes); must be removed or will leak....
     return 0;
+}
+
+// scan list, find most powerful AP
+// return password string AND my_scan_result ptr or NULL
+struct my_scan_result *scan_find_best_ap(char *password){
+    struct cdll *ll;
+    struct my_params *test;
+    struct my_params *best = NULL; //best ap found
+    password[0] = '\0';
+
+    cdll_for_each(ll, &knownnodes) {
+        test = cast_cdll_to_my_params(ll);
+        if (test->found == 0) {
+            //ignore nodes already checked
+            if (best == NULL) {
+                best = test; //first one is best so far
+            }
+            if (test->res.rssi > best->res.rssi) {
+                best = test; //found a new best
+            }
+            rb_errors_t  err = flash_io_find_matching_ssid(best->res.ssid, password);
+            if (err < 0) {
+                best= NULL;
+            } else {
+                break; //found best and a flash match
+            }
+        }
+    }
+    if (best != NULL) {
+        best->found = 42; //set flag in linked list as used
+        return &best->res;
+    }
+    return NULL;    //no AP found
 }

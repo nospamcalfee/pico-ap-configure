@@ -33,4 +33,5 @@ rb_errors_t flash_io_write_hostname(char *hostname, uint32_t nlen);
 rb_errors_t flash_io_read_latest_hostname(void);
 rb_errors_t flash_io_erase_ssids_hostnames(void);
 int scan_find_ssid();
+ rb_errors_t flash_io_find_matching_ssid(char *ss, char *pw);
 #endif //_FLASH_IO_H_
