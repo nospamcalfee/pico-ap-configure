@@ -177,6 +177,7 @@ httpd_post_receive_data(void *connection, struct pbuf *p)
         u16_t len_ssid;
         u16_t len_pass;
         u16_t len_host;
+//        fixme len_ssid is one too long?
         u16_t offset_ssid = check_field(p, "ssid=", &len_ssid);
         u16_t offset_pass = check_field(p, "pass=", &len_pass);
         u16_t offset_host = check_field(p, "host=", &len_host);
@@ -189,7 +190,7 @@ httpd_post_receive_data(void *connection, struct pbuf *p)
             char *w_host = (char *)get_post_string(p, local_host_name, sizeof(local_host_name), len_host, offset_host);
             if (w_ssid && w_pass && w_host) {
                 memcpy(wifi_ssid, w_ssid, len_ssid); //preserve the new ssid
-                wifi_ssid[len_ssid] = 0;
+                wifi_ssid[len_ssid - 1] = 0; //fixme this cannot be right
                 memcpy(wifi_password, w_pass, len_pass);
                 wifi_password[len_pass] = 0;
                 printf("POST handler wifi_ssid=%s wifi_password=%s\n",wifi_ssid, wifi_password);
