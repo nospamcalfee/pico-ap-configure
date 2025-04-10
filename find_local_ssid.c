@@ -130,8 +130,8 @@ static int scan_all_result(void *env, const cyw43_ev_scan_result_t *result) {
             result->ssid, result->rssi, result->channel,
             result->bssid[0], result->bssid[1], result->bssid[2], result->bssid[3], result->bssid[4], result->bssid[5],
             result->auth_mode);
-        if (result->rssi < LOCAL_SCAN_MIN_RSSI) {
-            printf("scan AP too weak %d\n", result->rssi);
+        if (result->rssi < LOCAL_SCAN_MIN_RSSI || strlen(result->ssid) == 0) {
+            printf("scan AP too weak %d or anon=%s\n", result->rssi, result->ssid);
             return 0;
         }
 

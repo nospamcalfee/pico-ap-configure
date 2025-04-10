@@ -197,33 +197,42 @@ int main() {
 
     struct my_scan_result *likelyAP = NULL;
     httpd_init();
+
+    scan_find_all_ssids(); //build linked list of all local ssids
     do {
-        scan_find_all_ssids(); //build linked list of all local ssids
-        do {
-            // find next most powerful rssi in local ssid list
-            cyw43_arch_deinit();
-            cyw43_arch_init();
-            cyw43_arch_enable_sta_mode();
-            //see if in flash, and get password if so..
-            likelyAP = scan_find_best_ap(wifi_password);
-            if (likelyAP == NULL) {
-                //either does not exist, or not in our flash
-                removelist(&knownnodes); //discard list
-                //fixme this won't exit if ap is not in flash...and it wont be an ap either...
-                break;
-            }
+        // find next most powerful rssi in local ssid list
+        cyw43_arch_deinit();
+        cyw43_arch_init();
+        cyw43_arch_enable_sta_mode();
+        //see if in flash, and get password if so..
+        likelyAP = scan_find_best_ap(wifi_password);
+        if (likelyAP == NULL) {
+            //either does not exist, or not in our flash
+            removelist(&knownnodes); //discard list
+            //init with default ssid/password - for now from compile, later from flash
+            strncpy(wifi_ssid, WIFI_SSID, sizeof(wifi_ssid)-1);
+            wifi_ssid[sizeof(wifi_ssid) - 1] = 0;
+            strncpy(wifi_password, WIFI_PASSWORD, sizeof(wifi_password)-1);
+            wifi_password[sizeof(wifi_password) - 1] = 0;
+            flash_io_write_ssid(wifi_ssid, wifi_password); //write out default
+            printf("using default ssid\n");
+        } else {
             //if local and in flash, see if I can connect
             memcpy(wifi_ssid, likelyAP->ssid, sizeof(wifi_ssid)); //get ssid set too
-            // Connect to the WiFI network - can fail, so try again
-            if (cyw43_arch_wifi_connect_timeout_ms(wifi_ssid, wifi_password, CYW43_AUTH_WPA2_AES_PSK, 30000) != 0){
-                printf("failed to connect to %s p=%s...\n", wifi_ssid, wifi_password);
-                // config_changed = 0; // prepare app for ssid config change.
-                // be access point for awhile, try to get user to set ssid and password
-                be_access_point(local_host_name);
-                //In any, case if fail, try again to connect to the new ap/password
-                likelyAP = NULL; //force another loop
-            }
-        } while (likelyAP == NULL);
+        }
+        // Connect to the WiFI network - can fail, so try again
+        if (cyw43_arch_wifi_connect_timeout_ms(wifi_ssid, wifi_password, CYW43_AUTH_WPA2_AES_PSK, 30000) != 0){
+            printf("failed to connect to %s p=%s...\n", wifi_ssid, wifi_password);
+            config_changed = 0; // prepare app for ssid config change.
+            // be access point for awhile, try to get user to set ssid and password
+            be_access_point(local_host_name);
+            //In any, case if fail, try again to connect to the new ap/password
+            likelyAP = NULL; //force another loop
+        } else {
+            // Print a success message once connected
+            printf("Connected! host=%s ssid=%s pw=%s\n", local_host_name, wifi_ssid, wifi_password);
+            break; //we connected exit try loop
+        }
     } while (likelyAP == NULL);
     //ready to run as a regular website
     // cyw43_arch_init();
@@ -286,8 +295,6 @@ int main() {
     }
 #endif
     set_host_name(local_host_name);
-    // Print a success message once connected
-    printf("Connected! \n");
 
     mdns_example_init();
 

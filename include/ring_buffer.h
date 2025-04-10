@@ -170,7 +170,8 @@ enum rberrors {
     RB_FULL,
 };
 
-typedef int8_t rb_errors_t;
+typedef int rb_errors_t;
+//fixme this whole return scheme is fowled up. All errors should be negative, always!
 
 //define initialize choices
 enum init_choices {
