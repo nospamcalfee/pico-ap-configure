@@ -221,8 +221,9 @@ int main() {
             memcpy(wifi_ssid, likelyAP->ssid, sizeof(wifi_ssid)); //get ssid set too
         }
         // Connect to the WiFI network - can fail, so try again
-        if (cyw43_arch_wifi_connect_timeout_ms(wifi_ssid, wifi_password, CYW43_AUTH_WPA2_AES_PSK, 30000) != 0){
-            printf("failed to connect to %s p=%s...\n", wifi_ssid, wifi_password);
+        int conres = cyw43_arch_wifi_connect_timeout_ms(wifi_ssid, wifi_password, CYW43_AUTH_WPA2_AES_PSK, 30000);
+        if (conres != 0){
+            printf("err=%d failed to connect to %s p=%s...\n", conres, wifi_ssid, wifi_password);
             config_changed = 0; // prepare app for ssid config change.
             // be access point for awhile, try to get user to set ssid and password
             be_access_point(local_host_name);
