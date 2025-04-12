@@ -536,7 +536,7 @@ rb_errors_t rb_find(rb_t *rb, uint8_t id, const void *data, uint32_t size, uint8
     do {
         hdr_res = fetch_and_check_header(rb, &hdr, 0); //fetch and check header
         if (hdr_res != RB_OK) {
-            return -hdr_res; //return errors here
+            return hdr_res; //return errors here
         }
         if (hdr.id != id || !(hdr.crc & RB_HEADER_NOT_SMUDGED)) {
             //not my data, or it was erased, skip the header and the data
