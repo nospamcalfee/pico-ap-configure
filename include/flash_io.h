@@ -20,18 +20,13 @@ int read_flash_id_n(int id, uint32_t flash_buf, uint32_t flash_len, int n);
  read all ssids from flash. return number of successful reads or negative error
  status
 */
-rb_errors_t flash_io_read_ssids(void);
-//read a specific ssid entry
-rb_errors_t flash_io_read_ssid(int n);
 //if ssids are not in flash, write them
 //for safety write both the ssid and the password as 2 strings to flash
 // void create_ssid_rb(rb_t *rb, enum init_choices ssid_choice);
 //write a new ssid/pw pair
 rb_errors_t flash_io_write_ssid(char * ss, char *pw);
-rb_errors_t flash_io_read_latest_ssid(void);
 rb_errors_t flash_io_write_hostname(char *hostname, uint32_t nlen);
 rb_errors_t flash_io_read_latest_hostname(void);
 rb_errors_t flash_io_erase_ssids_hostnames(void);
-int scan_find_ssid();
- rb_errors_t flash_io_find_matching_ssid(char *ss, char *pw);
+rb_errors_t flash_io_find_matching_ssid(char *ss, char *pw);
 #endif //_FLASH_IO_H_

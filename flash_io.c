@@ -49,7 +49,7 @@ int read_flash_ids(int id, uint32_t flash_buf, uint32_t flash_len){
     return err;
 }
 //read a specific flash entry entry n
-int read_flash_id_n(int id, uint32_t flash_buf, uint32_t flash_len, int n){
+rb_errors_t read_flash_id_n(int id, uint32_t flash_buf, uint32_t flash_len, int n){
     int i;
     int err;
     rb_t rb;
@@ -79,7 +79,7 @@ int read_flash_id_n(int id, uint32_t flash_buf, uint32_t flash_len, int n){
     return err; //return actual length
 }
 //read a specific flash entry entry n
-int read_flash_id_latest(int id, uint32_t flash_buf, uint32_t flash_len){
+rb_errors_t read_flash_id_latest(int id, uint32_t flash_buf, uint32_t flash_len){
     int err;
     rb_t rb;
 
@@ -125,19 +125,6 @@ rb_errors_t flash_io_write_flash_id(int id, uint32_t flash_buf, uint32_t flash_l
     }
     return blen;
 }
-//fixme this whole thing is messed up. all ssids are counted, generally what I want is number of ssids that match.
-rb_errors_t flash_io_read_ssids(void){
-    return read_flash_ids(SSID_ID, SSID_BUFF, SSID_LEN);
-}
-
-//read a specific ssid entry
-rb_errors_t flash_io_read_ssid(int n){
-    return read_flash_id_n(SSID_ID, SSID_BUFF, SSID_LEN, n);
-}
-
-rb_errors_t flash_io_read_latest_ssid(void) {
-        return read_flash_id_latest(SSID_ID, SSID_BUFF, SSID_LEN);
-}
 
 rb_errors_t flash_io_erase_ssids_hostnames() {
     rb_t trb;
@@ -153,33 +140,34 @@ rb_errors_t flash_io_erase_redundant_ssids(char *ss) {
     rb_errors_t terr = rb_recreate(&rb, SSID_BUFF, SSID_LEN / FLASH_SECTOR_SIZE, CREATE_FAIL);
     if (!(terr == RB_OK || terr == RB_BLANK_HDR)) {
         printf("reopening flash_io_erase_redundant_ssids flash error %d, quitting\n", terr);
-        exit(1); //should never happen
+        return terr; //should never happen
     }
-    // if (!sslen) {
-    //     //special case entry exists but no length?
-    //     terr = rb_delete(&rb, SSID_ID, ss, sslen, pagebuff);
-    //     return terr;
-    // }
     while (terr >= 0 && sslen) {
-        terr = rb_find(&rb, SSID_ID, ss, sslen, pagebuff);
+        terr = rb_find(&rb, SSID_ID, ss, sslen, pagebuff); //find first copy of ssid
         if (terr < 0) {
             //some error
             printf("some flash_io_erase_redundant_ssids find failure %d looking for \"%s\"\n", terr, ss);
             break; //exit loop on failure
         } else {
-            //we found a matching ssid, return its password, first read flash
-            rb.next = terr; //use returned find offset
-            rb_delete(&rb, SSID_ID, ss, sslen, pagebuff); //so delete first match fixme
+            // at least one ssid matches, see if it is a duplicate because it is older
+            //rb.next is set to after the found entry, so start find from there
+            rb_errors_t next_ssid = rb_find(&rb, SSID_ID, ss, sslen, pagebuff);
+            if (next_ssid >=0) {
+                //found another copy of ssid, so erase earlier one
+                rb.next = terr; //use returned find offset from first match
+                printf("removing redundant @ %d, newer @ %d\n", terr, next_ssid);
+                rb_delete(&rb, SSID_ID, ss, sslen, pagebuff); //so delete redundant
+            } else {
+                //could not find second entry, either a true error or no more
+                //redundant entries exist.
+                printf("second find failed redundant @ %d, newer @ %d\n", terr, next_ssid);
+                if (!(next_ssid == RB_BLANK_HDR || next_ssid == RB_HDR_ID_NOT_FOUND)) {
+                    return next_ssid; //so exit with n error
+                } else {
+                    return RB_OK;
+                }
+            }
         }
-        // //we wrote something, erase any earlier passwords, if they exist
-        // // fixme this doesnt work, I need to find ssids that match my ssid
-        // int noids = flash_io_read_ssids(); //find all ssids
-        // if (noids > 1) {
-        //     //if there are no extras, don't delete them
-        //     for (int i = 0; i < noids - 1; i++) {
-        //         terr = rb_delete(&rb, SSID_ID, ss, sslen, pagebuff);
-        //     }
-        // }
     }
     return terr;
 }
@@ -189,12 +177,12 @@ rb_errors_t flash_io_find_matching_ssid(char *ss, char *pw) {
     rb_t rb;
     rb_errors_t terr;
     int sslen = strlen(ss);
-    // //make sure only one ssid for this ss exists in flash
-    // rb_errors_t terr = flash_io_erase_redundant_ssids(ss);
-    // if (terr) {
-    //     printf("finding flash error %d, quitting\n", terr);
-    //     return terr;
-    // }
+    //make sure only one ssid for this ss exists in flash
+     terr = flash_io_erase_redundant_ssids(ss);
+    if (terr < 0) {
+        printf("finding flash error %d, quitting\n", terr);
+        return terr;
+    }
 
     terr = rb_recreate(&rb, SSID_BUFF, SSID_LEN / FLASH_SECTOR_SIZE, CREATE_FAIL);
     if (terr != RB_OK && terr != RB_BLANK_HDR) {
@@ -238,9 +226,9 @@ rb_errors_t flash_io_write_ssid(char * ss, char *pw) {
     memcpy(tempssid + s1len, pw, s2len);
 
     rb_errors_t terr =  flash_io_write_flash_id(SSID_ID, SSID_BUFF, SSID_LEN, tempssid, s1len+s2len);
-    // if (terr > 0) {
-    //     flash_io_erase_redundant_ssids(ss);
-    // }
+    if (terr > 0) {
+        flash_io_erase_redundant_ssids(ss); // erase matching ssids, not ssid/pw combos
+    }
     return terr;
 }
 
@@ -252,5 +240,8 @@ rb_errors_t flash_io_write_hostname(char *hostname, uint32_t nlen) {
     rb_errors_t terr =  flash_io_write_flash_id(HOSTNAME_ID, NAME_BUFF, NAME_LEN, hostname, nlen);
     printf("finally wrote hostname id=0x%x stat=%d name=%s\n",
             HOSTNAME_ID, terr, hostname);
+    if (terr > 0) {
+        flash_io_erase_redundant_ssids(hostname);
+    }
     return terr;
 }

@@ -497,7 +497,6 @@ rb_errors_t rb_append(rb_t *rb, uint8_t id, const void *data, uint32_t size,
         }
         hdr_res = rb_findnext_writeable(rb); //get pointers in rb
         if (hdr_res == RB_HDR_LOOP && erase_if_full) {
-            // nextincr(rb, FLASH_SECTOR_SIZE); //bump to next in ring
             rb_find_ring_oldest_sector(rb);
             // rb->next = FLASH_SECTOR(rb->next);
             flash_erase(rb->base_address + rb->next, FLASH_SECTOR_SIZE);
@@ -507,11 +506,6 @@ rb_errors_t rb_append(rb_t *rb, uint8_t id, const void *data, uint32_t size,
             rbh.id = id; //only thing needed from here on the header
             hdr_res = rb_sector_append(rb, &rbh, data, size);
             if ((hdr_res == RB_WRAPPED_SECTOR_USED || hdr_res == RB_FULL) && erase_if_full) {
-                //erase next sector in ring
-                // uint32_t offs = FLASH_SECTOR(rb->next) + FLASH_SECTOR_SIZE;
-                // if (offs >= rb->number_of_bytes) {
-                //     offs = 0; //wrap around flash allocation
-                // }
                 rb_find_ring_oldest_sector(rb);
                 flash_erase(rb->base_address + rb->next, FLASH_SECTOR_SIZE);
                 continue; //try append again
@@ -546,7 +540,6 @@ rb_errors_t rb_find(rb_t *rb, uint8_t id, const void *data, uint32_t size, uint8
         }
         //found next entry, read it into scratch buffer
         uint32_t oldnext = rb->next;
-        // rb->next += sizeof(hdr);
         hdr_res = rb_read(rb, id, scratch, size);
         if (hdr_res > 0) {
             // now see if it is the correct entry, and found.
@@ -575,7 +568,7 @@ static rb_errors_t rb_smudge(rb_t *rb, uint32_t offset_to_smudge) {
     rb->next += offsetof(rb_header, crc);
     printf("rb_smudge erasing 0x%lx\n", rb->next);
     int res = rb_append_page(rb, &hdr.crc, 1);
-    rb->next = savenext; //fixme I am not sure I need this, but it shouldn't hurt.
+    rb->next = savenext; //return offset to entry deleted
     return res;
 }
 /* given a writable page, delete a matching id, string entry */
@@ -606,7 +599,11 @@ rb_errors_t rb_delete(rb_t *rb, uint8_t id, const void *data, uint32_t size, uin
     read up to size data bytes into data buffer, of next flash which matches id.
     If data is less than size, check to see if split into two sectors, and add
     the second data to the read. If data is less than size, return only the
-    actual data. Return actual amount read or a negative status code.
+    actual data.
+
+    side effect rb->next will point to the next rb data to read
+
+    Return actual amount read or a negative status code.
 */
 int rb_read(rb_t *rb, uint8_t id, void *data, uint32_t size) {
     rb_errors_t hdr_res;
@@ -665,10 +662,11 @@ int rb_read(rb_t *rb, uint8_t id, void *data, uint32_t size) {
     return total_read;
 }
 /* 
-Create a new variable sized ringbuffer control block, maybe erasing the whole
-thing. Can be called at any time to re-init. Every init points to the oldest
-sector and first item in the sector. So for reads it is like a rewind. Appends
-will go to the end of the ring always.
+Create a new variable sized ringbuffer control block, optionally erasing the
+whole flash ringbuffer. Can be called at any time to re-init.
+
+Every init points to the oldest sector and first item in the sector. So for
+reads it is like a rewind. Appends will go to the end of the ring always.
 */
 rb_errors_t rb_create(rb_t *rb, uint32_t base_address, 
                       size_t number_of_sectors, enum init_choices init_choice) {

@@ -16,8 +16,8 @@ struct my_scan_result {
 };
 
 struct my_params{
-    int found;
     struct cdll ll;
+    int found;
     struct my_scan_result res;
 };
 
