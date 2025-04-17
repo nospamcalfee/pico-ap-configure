@@ -27,29 +27,90 @@ https://github.com/nospamcalfee/pico-ap-configure
 
 ## What this example does
 
-The app tries to connect to whatever ssid/password you configured in the
-build. If this fails, after 30 seconds, the pico-w starts up as an access
-point so a cellphone or pc can join the pico-w network. Once this happens the
-user can use a browser to connect to the pico-w ap website at default
-192.168.4.1 and then the user can set ssid/password and optionally fixed-ip
-and fixed-netmask.
+
+From the code:
+
+```
+        Starting up, first we see if we have any local wifi ssids that match
+        known ones in flash. If we cannot connect to any of these we become
+        an AP and get the user to give us the local wifi credentials. If no
+        ap creds are supplied, we time out and try again in the hope that a
+        missing AP may turn up (due to power failure).
+
+        details:
+
+         once started, the wifi AP might not be up yet. So maybe we have to do another
+         find of all available if all possible connections fails.
+
+         The sequence is
+
+         OUTER LOOP
+
+         1) get a list of all APs
+
+         INNER LOOP
+             2) find the most powerful remaining ap in the list.
+
+             3) see if the flash has an entry for this high power ap, if not in flash, go
+             back to step 2 (Inner loop)
+
+             4) if connection fails, retry from step 2 until all discovered and known APs
+             have been tried.
+
+         5) if connection still fails after all the known APs have been tried, become
+         an AP to see if the user wants to configure wifi.
+
+         6) after AP handling, which may timeout or may set a new flash AP entry,
+         start over at step 1.
+
+
+```
+
+When the application cannot connect to a known wifi, the pico-w starts up as
+an access point so a cellphone or pc can join the pico-w network. Once this
+happens the user can use a browser to connect to the pico-w ap website at
+default 192.168.4.1 and then the user can set ssid/password and optionally
+fixed-ip and fixed-netmask.
+
+This is operationally difficult for most users who do this occasionally. So a
+long timeout of 3 minutes is allowed before the iot device retries to connect
+to any known wifi networks. This helps if a power failure resets both the iot
+device and an AP which may take a long time to boot up. So unattended iot
+devices will eventually connect to a slow AP.
+
+First the connecting device (phone or pc) must connect to the temporary ap of
+the picow. In an IOT situation maybe several devices need to be configured,
+so maybe to make this easier an unnamed device id named webapp_01_9a_bb where
+the funny numbers are the low 3 bytes of the built-in MAC address.
+
+Second they must enter their local wifi name and sometimes complicated wifi
+passwords.
+
+Finally, the connecting device has to have a browser connected on this new
+network to 192.168.4.1
 
 I took the gherlein app and made it standalone. Then expanded to include
 entering SSID and password. Then I added cgi POST processing which I needed
-for my app, and is already needed for the AP ssid etc entry anyway.
+for my app, and is already needed for the AP ssid/password/hostname entry
+anyway.
 
 The cgi POST processing is already in the sdk, but the post_example.c is
 pretty vague. A prime example in this project is how POST works and how an AP
 works.
 
-To actually create or test an iot device that needs to start in ap mode, just
-give an invalid WIFI_SSID or WIFI_PASSWORD in the cmake command. Then after
-the app starts and tries to connect for 30 seconds, after timeout it will
-start the access point (by default name ```picow_test```). The default
-network password is cleverly ```password```. Your own local iot network name
-and password can be changed in the function be_access_point. After connecting
-to your ap, you can then access the html in a browser at 192.168.4.1 and set
-the actual wifi network credentials you have locally.
+The build requirement for WIFI_SSID and WIFI_PASSWORD and HOSTNAME is removed.
+Now, if no local wifi credentials are in flash, the user (you!) has to go
+into the AP website and define the ssid/password/hostname. Then the system
+should reconnect.
+
+After the app starts it looks for active local wifi ssids, if a matching ssid
+exists in flash, that is used for a connect. After timeout it will start the
+access point (by default name ```webapp_xx_xx_xx``` where xx is a sort of
+random hex number). The default network password is cleverly ```password```.
+Your own local iot network name and password can be changed in the function
+be_access_point. After connecting to your ap, you can then access the html in
+a browser at 192.168.4.1 and set the actual wifi network credentials you have
+locally.
 
 I extended this example to include mdns (AKA bonjour or avahi). I was
 surprised to see a panic from lwip. Searching around the forums I see
@@ -75,19 +136,11 @@ be configured - setting ssid and password as here, but also setting a fixed
 IP/Mask to be used. I have not done that yet, maybe later, but it is a simple
 extension of this example's POST handling.
 
-I need better error retries. All comms should be timed out and retried a few
-times. If I don't get ntp time, I cannot do regular IOT timing. Problems
-need to be reported on the web page - like no ntp or no comm. The no comm is
-from another timer who cannot communicate, but is on the wifi.
+If I don't get ntp time from a server, I cannot do regular IOT timing.
+Problems need to be reported on the web page - like no ntp or no comm.
 
 I need watchdog reset - like an arcade game, the only big sin is not not be
 ready for a coin or in this case IOT time handling.
-
-Devices should periodically check if they have the latest schedule and are out
-of date to a comm error or power was off etc.
-
-Need to give up on being an ap if no connection, and so retry the wifi
-connection - so temporary AP outages after a power fail will recover.
 
 ### Tricks to use CGI-POST handling
 
@@ -112,23 +165,24 @@ and still needs the -DCMAKE_BUILD_TYPE=Debug in the cmake incantation. You
 can change to release by fixing CMakeLists.txt and not doing
 the ```-DCMAKE_BUILD_TYPE``` stuff.
 
-This code only builds the website when cmake runs. Code changes do not require
-it, just run make. Someone may know how to do this correctly, where make runs
-the makefsdata.py whenever a file in html_files changes. (fixme) To
-completely rebuild a project including the cmake, before typing the cmake ...
-step first enter ```rm CMakeCache.txt``` or whatever complications your IDE
-requires.
+New, a change to CMakeLists.txt makes editing changes to the listed website
+html/etc causes files to be rebuilt when altered. New files to be added to
+the pico website will require them to be individually listed in
+CMakeLists.txt.
 
 ```bash
 cd yourprojectdirectory
 mkdir build; cd build
-cmake  -DWIFI_SSID="yourwifi" -DWIFI_PASSWORD="1234567890" -DHOSTNAME="test" -DCMAKE_BUILD_TYPE=Debug ..
+cmake -DCMAKE_BUILD_TYPE=Debug ..
 make
 ```
 
 Once built, the `picow_webapp.uf2` file can be dragged and dropped onto your
 Raspberry Pi Pico W to install and run the example. If your network
-ssid/password are correct, or after you set them in the ap mode, you can then
-access the application html using the mdns name (in this cmake hostname
-example) as test.local
-
+ssid/password/hostname already in flash are correct, or after you set them in
+the AP mode, you can then access the application html using the mdns name
+(in this cmake hostname example) as test.local. You will have to use a mdns
+browser on android, something on iphones or windows to find a new, never
+before setup device, probably with some variant of webapp_xx_xx_xx . Once you
+set the hostname with the built in AP, that name will be used in any browser
+such as test.local
