@@ -1,4 +1,5 @@
-# Test Raspberry Pi Pico W (RP2040) Access Point To html application
+# Raspberry Pi Pico W (RP2040) Access Point To html application
+## Release 1.0 - all features working, need testing
 
 I started with this: https://github.com/gherlein/pico-ap-c-test/blob/main/README.md
 
