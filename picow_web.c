@@ -104,8 +104,7 @@ void be_access_point(char *ap_name) {
         sleep_ms(900);
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
         sleep_ms(100);
-        printf("Connected as AP to %s.local: ",
-            netif_get_hostname(netif_default));
+        // we may not have started mdns - so dont use local name
         printf("Access Point IP addr: %s\n",
             ip4addr_ntoa(netif_ip4_addr(netif_list)));
         if (config_changed) {
@@ -118,6 +117,7 @@ void be_access_point(char *ap_name) {
     dns_server_deinit(&dns_server);
     dhcp_server_deinit(&dhcp_server);
     cyw43_arch_disable_ap_mode();
+    sleep_ms(200); //after switch, connect seems racy?
 }
 
 int main() {
@@ -214,7 +214,14 @@ int main() {
                 //if local and in flash, see if I can connect
                 memcpy(wifi_ssid, likelyAP->ssid, sizeof(wifi_ssid)); //get ssid set too
                 // Connect to the WiFI network - can fail, so try again
-                int conres = cyw43_arch_wifi_connect_timeout_ms(wifi_ssid, wifi_password, CYW43_AUTH_WPA2_AES_PSK, 30000);
+                int conres;
+                for (int i = 0; i < 4; i++) {
+                    conres = cyw43_arch_wifi_connect_timeout_ms(wifi_ssid, wifi_password, CYW43_AUTH_WPA2_AES_PSK, 30000);
+                    if (conres != PICO_ERROR_CONNECT_FAILED) {
+                        break;  //some real error, exit loop
+                    }
+                    printf("err=%d retrying connect to %s p=%s...\n", conres, wifi_ssid, wifi_password);
+                }
                 if (conres != 0){
                     printf("err=%d failed to connect to %s p=%s...\n", conres, wifi_ssid, wifi_password);
                      // be access point for awhile, try to get user to set ssid and password
