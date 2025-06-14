@@ -92,5 +92,5 @@ pico_set_lwip_httpd_content(pico_httpd_content INTERFACE
 pico_add_extra_outputs(${PROGRAM_NAME})
 
 
-pico_enable_stdio_usb(${PROGRAM_NAME} FALSE)
+pico_enable_stdio_usb(${PROGRAM_NAME} TRUE)
 pico_enable_stdio_uart(${PROGRAM_NAME} TRUE)

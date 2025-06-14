@@ -1,5 +1,4 @@
 # Raspberry Pi Pico W (RP2040) Access Point To html application
-## Release 1.0 - all features working, need testing
 
 I started with this: https://github.com/gherlein/pico-ap-c-test/blob/main/README.md
 
@@ -25,6 +24,12 @@ Next step is initing a system for ssid/password/ip/mask. I also incorporated
 the mdns stuff in this test.
 https://github.com/nospamcalfee/pico-ap-configure
 
+## Release 1.0 - all features working, need testing
+## Release 1.1 - fix embarrassing failure to start on an un-initialized picow.
+   It was not possible to start up and choose some wifi ap to connect to. Now
+   it allows starting while completely nuked, or in a situation when there
+   are multiple WIFI ssids, and all are not know via flash for
+   ssid/passwords.
 
 ## What this example does
 

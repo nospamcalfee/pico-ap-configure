@@ -135,7 +135,7 @@ static char *get_post_string(struct pbuf *p, char *destmem, uint16_t destlen, ui
         memmove(destmem, w_ptr, destlen); //preserve the new json
         destmem[srclen] = '\0';   //terminate c string
         squash_hex_string(destmem, destmem); //squash in-place
-        printf("New POST handler destmem=%s\n", destmem);
+        printf("New POST handler destmem=%s destlen=%d srclen=%d\n", destmem, destlen, srclen);
         w_ptr = destmem;
     }
     return w_ptr;
@@ -190,7 +190,7 @@ httpd_post_receive_data(void *connection, struct pbuf *p)
             char *w_host = (char *)get_post_string(p, local_host_name, sizeof(local_host_name), len_host, offset_host);
             if (w_ssid && w_pass && w_host) {
                 memcpy(wifi_ssid, w_ssid, len_ssid); //preserve the new ssid
-                wifi_ssid[len_ssid - 1] = 0; //fixme this cannot be right
+                wifi_ssid[len_ssid] = 0;
                 memcpy(wifi_password, w_pass, len_pass);
                 wifi_password[len_pass] = 0;
                 printf("POST handler wifi_ssid=%s wifi_password=%s\n",wifi_ssid, wifi_password);

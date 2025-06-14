@@ -68,7 +68,7 @@ void be_access_point(char *ap_name) {
     if (post_state == NULL) {
         post_state = calloc(1, sizeof(TCP_SERVER_T));
     }
-    // httpd_init();
+    config_changed = 0; // prepare app for ssid config change.
     printf("Http server for configuration initialised\n");
 
     // Configure SSI and CGI handler
@@ -217,8 +217,7 @@ int main() {
                 int conres = cyw43_arch_wifi_connect_timeout_ms(wifi_ssid, wifi_password, CYW43_AUTH_WPA2_AES_PSK, 30000);
                 if (conres != 0){
                     printf("err=%d failed to connect to %s p=%s...\n", conres, wifi_ssid, wifi_password);
-                    config_changed = 0; // prepare app for ssid config change.
-                    // be access point for awhile, try to get user to set ssid and password
+                     // be access point for awhile, try to get user to set ssid and password
                     be_access_point(local_host_name);
                     //In any, case if fail, try again to connect to the new ap/password
                     likelyAP = NULL; //force another loop
@@ -228,12 +227,14 @@ int main() {
                     connected = 1; //flag to exit both loops
                 }
             } else {
-                //no APs have been found, try again and wait. If no local AP
-                //exists, no point in being an AP. If an AP exists and we
+                //If an AP exists and we
                 //don't have it in flash, be an AP and allow user to
                 //configure. either does not exist, or not in our flash
+                // be access point for awhile, try to get user to set ssid and password
+                be_access_point(local_host_name);
+                //In any, case if fail, try again to connect to the new ap/password
+                likelyAP = NULL; //force another loop
                 break; //exit inner loop
-
             }
         } while (likelyAP == NULL);
         removelist(&knownnodes); //discard list of active wifi ssids
