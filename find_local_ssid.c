@@ -11,6 +11,67 @@ struct cdll knownnodes; //global list base
             struct cdll *, pt, \
             struct my_params, ll))
 
+static void printlist(struct cdll *p)
+{
+    struct cdll *ll;
+    struct my_params *test;
+    struct my_scan_result *result;
+    cdll_for_each(ll, p) {
+        test = cast_cdll_to_my_params(ll);
+        result = &test->res;
+        printf("printlist ssid: %-32s rssi: %4d chan: %3d\n",
+            result->ssid, result->rssi, result->channel);
+        // printf("printlist=%p knownnodes.next=%p knownnodes.prev=%p new=%p ll->next=%p ll->prev=%p\n",
+        //     &knownnodes, knownnodes.next, knownnodes.prev, ll, ll->next, ll->prev);
+    }
+}
+
+//function to compare rssi like in qsort.
+//ptrs to cdll incased in my_params
+//actually sorts largest to smallest in the list by reversing > to <
+static int compare_rssi(const void *nodea, const void *nodeb) {
+    struct my_params *na = cast_cdll_to_my_params((struct cdll *)nodea);
+    struct my_params *nb = cast_cdll_to_my_params((struct cdll *)nodeb);
+    int res = na->res.rssi < nb->res.rssi;
+    return res;
+}
+// Function to sort the linked list using bubble sort
+// compar is a generic user provided qsort like comparison routine
+// assumes head is a head node, not a data node
+// sorts assumes less to greater than, but can be changed by compare_routine option
+struct cdll* bubblesort(struct cdll* head, int (*compar)(const void *, const void *)) {
+
+    if (cdll_empty(head)) return head;
+
+    int swapped;
+    struct cdll* last = head;
+
+    // Keep going until no swaps occur in a pass
+    do {
+        swapped = 0;
+        struct cdll* curr = head->next;
+
+        // Traverse through the list and swap adjacent
+        // nodes if they are in the wrong order
+        while (curr->next != last) {
+            if (compar(curr, curr->next) > 0) {
+                cdll_swap_nodes(curr, curr->next);
+                printf("node swap\n");
+                printlist(&knownnodes);
+                swapped = 1;
+            } else {
+                //comparison is either equal or less than, move to the next
+                //pair of nodes
+                curr = curr->next;
+            }
+        }
+        // Update the last sorted element
+        last = curr; //fixme is this right?
+    } while (swapped);
+
+    return head;
+}
+
 //return 0 if not unique
 static int unique_ssid(const uint8_t *ssid) {
     struct cdll *ll;
@@ -68,11 +129,14 @@ static int scan_all_result(void *env, const cyw43_ev_scan_result_t *result) {
         if (uniq) {
             struct my_params *listtest = calloc(1, sizeof(*listtest));
             cdll_init(&listtest->ll);
-            memcpy(listtest->res.ssid, result->ssid, sizeof(listtest->res.ssid)); //make a copy of the returned struct
+            //make a copy of the interesting parts of the returned struct
+            memcpy(listtest->res.ssid, result->ssid, sizeof(listtest->res.ssid));
             listtest->res.channel = result->channel;
             listtest->res.rssi = result->rssi;
             cdll_insert_node_tail(&listtest->ll, &knownnodes);
-            printf("scanlist %p ll=%p\n",  listtest, &listtest->ll);
+            // printf("knownnodes=%p knownnodes.next=%p knownnodes.prev=%p new=%p ll->next=%p ll->prev=%p\n",
+            //     &knownnodes, knownnodes.next, knownnodes.prev, listtest, listtest->ll.next, listtest->ll.prev);
+            printlist(&knownnodes);
         } else {
             //not unique, is it a better choice with a better rssi?
             struct my_scan_result *better = better_rssi(result->ssid, result->rssi);
@@ -84,20 +148,6 @@ static int scan_all_result(void *env, const cyw43_ev_scan_result_t *result) {
         }
     }
     return 0;
-}
-static void printlist(struct cdll *p)
-{
-    struct cdll *ll;
-    struct my_params *test;
-    struct my_scan_result *result;
-    cdll_for_each(ll, p) {
-        test = cast_cdll_to_my_params(ll);
-        result = &test->res;
-        printf("printlist ssid: %-32s rssi: %4d chan: %3d\n",
-            result->ssid, result->rssi, result->channel);
-        // printf("printlist %p ll=%p\n", test, ll);
-    }
-
 }
 /* remove a cdll list included in a my_params struct */
 void removelist(struct cdll *p)
@@ -141,8 +191,27 @@ int scan_find_all_ssids(void)
         // cyw43_arch_wait_for_work_until(make_timeout_time_ms(1000));
         sleep_ms(1000);
     }
-    printlist(&knownnodes);
-    // removelist(&knownnodes); must be removed or will leak....
+    // removelist(&knownnodes); remember someone must remove the list or it will leak....
+    if (!cdll_empty(&knownnodes)) {
+        printf("sort ap list\n");
+        // these commented out lines may help in debugging list handling stuff
+
+        // struct cdll *first = (&knownnodes)->next;
+        // struct cdll *second = (&knownnodes)->next->next;
+        // cdll_delete_node(first);
+        // printf("sort ap list first deleted\n");
+        // printlist(&knownnodes);
+        // cdll_insert_node_head(first, second);
+        // printf("sort ap list second added\n");
+        // printlist(&knownnodes);
+        // printf("sort ap list inserted\n");
+        // cdll_swap_nodes((&knownnodes)->next, (&knownnodes)->next->next);
+
+        printlist(&knownnodes);
+        bubblesort(&knownnodes, compare_rssi);
+        printf("sorted by power ap list\n");
+        printlist(&knownnodes);
+    }
     return 0;
 }
 

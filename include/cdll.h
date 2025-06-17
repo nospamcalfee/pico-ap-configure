@@ -16,9 +16,10 @@
 #define __CDLL_INFRA_H__
 
 /*
- * cdll circular double linked list infrastructure
- * linked list implementation,
- * can be used as a FIFO, FILO or ring buffer.
+ * cdll circular double linked list infrastructure linked list implementation,
+ * can be used as a FIFO, FILO or ring buffer. Every list has a listhead node
+ * that is not really in the list, and cannot be cast to whatever struct the
+ * list is contained in.
  */
 struct cdll {
     struct cdll *next;
@@ -55,6 +56,8 @@ void cdll_insert_node_head(struct cdll *newnode, struct cdll *head);
  */
 void cdll_insert_node_tail(struct cdll *newnode, struct cdll *head);
 void cdll_delete_node(struct cdll *list);
+//kind of tricky, but useful for sorts
+void cdll_swap_nodes(struct cdll *i, struct cdll *j);
 
 /**
  * cast_p_to_outer - cast a pointer to an outer, containing struct

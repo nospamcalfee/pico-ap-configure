@@ -50,7 +50,7 @@ void cdll_insert_node_head(struct cdll *newnode, struct cdll *head)
  * newnode: new entry to be added
  * head: list head to add it after
  *
- * Insert a new entry befor the specified head.
+ * Insert a new entry before the specified head.
  * This is good for implementing fifo queues.
  */
 void cdll_insert_node_tail(struct cdll *newnode, struct cdll *head)
@@ -63,4 +63,13 @@ void cdll_delete_node(struct cdll *list)
     /* remove node from list. */
     list->prev->next = list->next;
     list->next->prev = list->prev;
+    cdll_init(list);
+}
+//kind of tricky, but useful for sorts
+void cdll_swap_nodes(struct cdll *oldfirst, struct cdll *newfirst)
+{
+    if (oldfirst != newfirst){
+        cdll_delete_node(newfirst);
+        cdll_insert_node_tail(newfirst, oldfirst);
+    }
 }
