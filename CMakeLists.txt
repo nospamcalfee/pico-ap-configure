@@ -26,8 +26,6 @@ pico_sdk_init()
 
 add_executable(${PROGRAM_NAME}
         picow_web.c
-        dhcpserver/dhcpserver.c
-        dnsserver/dnsserver.c
         cgi.c
         ssi.c
         post_handler.c
@@ -56,8 +54,6 @@ pico_set_linker_script(${PROGRAM_NAME} ${CMAKE_SOURCE_DIR}/memmap_custom.ld)
 target_include_directories(${PROGRAM_NAME} PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}
         ${CMAKE_CURRENT_LIST_DIR}/.. # for our common lwipopts
-        ${CMAKE_CURRENT_LIST_DIR}/dhcpserver
-        ${CMAKE_CURRENT_LIST_DIR}/dnsserver
         ${CMAKE_CURRENT_LIST_DIR}/include
         )
 
