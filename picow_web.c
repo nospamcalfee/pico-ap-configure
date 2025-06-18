@@ -5,8 +5,6 @@
 #include "lwipopts.h"
 #include "ssi.h"
 #include "cgi.h"
-#include "dhcpserver.h"
-#include "dnsserver.h"
 #include "post_handler.h"
 #include "pico/util/datetime.h"
 #include "hardware/rtc.h"
@@ -90,13 +88,6 @@ void be_access_point(char *ap_name) {
     IP4_ADDR(ip_2_ip4(&post_state->gw), 192, 168, 4, 1);
     IP4_ADDR(ip_2_ip4(&mask), 255, 255, 255, 0);
 
-    // Start the dhcp server
-    dhcp_server_t dhcp_server;
-    dhcp_server_init(&dhcp_server, &post_state->gw, &mask);
-
-    // Start the dns server
-    dns_server_t dns_server;
-    dns_server_init(&dns_server, &post_state->gw);
     // wait until user sets a ssid/password
     //fixme needs to be pretty long for a user, but for test, short
     for (int i = 0; i < 1 + 3*60; i++) {
@@ -113,9 +104,6 @@ void be_access_point(char *ap_name) {
             break; //got a new ssid
         }
     };
-    // tcp_server_close(post_state);
-    dns_server_deinit(&dns_server);
-    dhcp_server_deinit(&dhcp_server);
     cyw43_arch_disable_ap_mode();
     sleep_ms(200); //after switch, connect seems racy?
 }
