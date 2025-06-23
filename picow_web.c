@@ -13,6 +13,7 @@
 #include "flash_io.h"
 #include "relay_control.h"
 #include "find_local_ssid.h"
+#include "picow_tcp.h"
 
 void mdns_example_init(void);
 
@@ -23,17 +24,17 @@ void set_host_name(const char *hostname) {
     netif_set_up(n);
     cyw43_arch_lwip_end();
 }
-typedef struct TCP_SERVER_T_ {
+typedef struct HTTP_TCP_SERV_T_ {
     struct tcp_pcb *server_pcb;
     bool complete;
     ip_addr_t gw;
     async_context_t *context;
-} TCP_SERVER_T;
+} HTTP_TCP_SERV_T;
 
-static TCP_SERVER_T *post_state;
-static rb_t ssid_rb;    //keep buffer off stack
+static HTTP_TCP_SERV_T *post_state;
+// static rb_t ssid_rb;    //keep buffer off stack
 
-#define DEBUG_printf printf
+// #define DEBUG_printf printf
 
 //seconds difference between 1.1.1970 and 1.1.1900
 //ntp is based on since 1900
@@ -64,7 +65,7 @@ datetime_t datetime = {
 void be_access_point(char *ap_name) {
     //hang here until someone configures to my local ssid
     if (post_state == NULL) {
-        post_state = calloc(1, sizeof(TCP_SERVER_T));
+        post_state = calloc(1, sizeof(HTTP_TCP_SERV_T));
     }
     config_changed = 0; // prepare app for ssid config change.
     printf("Http server for configuration initialised\n");
@@ -185,7 +186,7 @@ int main() {
 
     struct my_scan_result *likelyAP = NULL;
     httpd_init();
-
+    TCP_SERVER_T *tcp_serv = tcp_server_init(NULL);
     int connected = 0; //outer loop exit flag when non-zeroS
     do {
         // outer loop, check all available local ssids on the air
@@ -254,6 +255,12 @@ int main() {
     printf("SSI Handler initialised\n");
     cgi_init();
     printf("CGI Handler initialised\n");
+    //start the control tcp server
+    if (!tcp_server_open(tcp_serv, 8088, tcp_server_recv,
+                        tcp_server_sent, tcp_server_send_data)) {
+        tcp_server_result(tcp_serv, -1);
+        //fixme what to do if I cannot start? wait, then reset?
+    }
 
     // Infinite loop
     while(1) {

@@ -39,6 +39,8 @@ add_executable(${PROGRAM_NAME}
         relay_control.c
         find_local_ssid.c
         cdll.c
+        picow_tcp_server.c
+        picow_tcp_client.c
         )
 
 #target_compile_options(${PROGRAM_NAME} PUBLIC -Werror -Wall -Wextra -Wnull-dereference -Wno-unused-parameter -Wno-null-dereference -ggdb3 -O3)
