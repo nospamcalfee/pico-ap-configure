@@ -25,7 +25,7 @@ struct user_header {
     tcp_sent_fn user_sent;
     /* Function to be called when (in-sequence) data has arrived. */
     tcp_recv_fn user_recv;
-    tcp_send_fn user_send; //function to send on socket
+    tcp_send_fn user_send; //function to send on socket (server only)
     void *priv; //for user tcp data and ptrs
 };
 
@@ -44,6 +44,8 @@ typedef struct TCP_SERVER_T_ {
 typedef struct TCP_CLIENT_T_ {
     struct tcp_pcb *tcp_pcb;
     ip_addr_t remote_addr;
+    uint16_t port;      //client only
+    struct user_header user;
     uint8_t buffer[BUF_SIZE];
     int buffer_len;
     int sent_len;
@@ -64,4 +66,8 @@ err_t tcp_server_result(TCP_SERVER_T *state, int status);
 err_t tcp_server_sent(void *arg, struct tcp_pcb *tpcb, u16_t len);
 err_t tcp_server_send_data(void *arg, struct tcp_pcb *tpcb);
 err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err);
+
+bool tcp_client_open(void *arg, uint16_t port, tcp_recv_fn recv,
+                        tcp_sent_fn sent);
+
 #endif

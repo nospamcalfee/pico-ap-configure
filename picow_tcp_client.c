@@ -70,28 +70,6 @@ static err_t tcp_result(void *arg, int status) {
     return tcp_client_close(arg);
 }
 
-static err_t tcp_client_sent(void *arg, struct tcp_pcb *tpcb, u16_t len) {
-    TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
-    DEBUG_printf("tcp_client_sent %u\n", len);
-    state->sent_len += len;
-
-    if (state->sent_len >= BUF_SIZE) {
-
-        state->run_count++;
-        if (state->run_count >= TEST_ITERATIONS) {
-            tcp_result(arg, 0);
-            return ERR_OK;
-        }
-
-        // We should receive a new buffer from the server
-        state->buffer_len = 0;
-        state->sent_len = 0;
-        DEBUG_printf("Waiting for buffer from server\n");
-    }
-
-    return ERR_OK;
-}
-
 static err_t tcp_client_connected(void *arg, struct tcp_pcb *tpcb, err_t err) {
     TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
     if (err != ERR_OK) {
@@ -113,6 +91,72 @@ static void tcp_client_err(void *arg, err_t err) {
         DEBUG_printf("tcp_client_err %d\n", err);
         tcp_result(arg, err);
     }
+}
+
+bool tcp_client_open(void *arg, uint16_t port, tcp_recv_fn recv,
+                        tcp_sent_fn sent) {
+    TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
+    DEBUG_printf("Connecting to %s port %u\n", ip4addr_ntoa(&state->remote_addr), TCP_PORT);
+    state->tcp_pcb = tcp_new_ip_type(IP_GET_TYPE(&state->remote_addr));
+    if (!state->tcp_pcb) {
+        DEBUG_printf("failed to create pcb\n");
+        return false;
+    }
+
+    tcp_arg(state->tcp_pcb, state);
+    tcp_poll(state->tcp_pcb, tcp_client_poll, POLL_TIME_S * 2);
+    // tcp_sent(state->tcp_pcb, sent);
+    // tcp_recv(state->tcp_pcb, recv);
+    tcp_err(state->tcp_pcb, tcp_client_err);
+
+    //fixme are these used in client?
+    state->user.user_recv = recv;
+    state->user.user_sent = sent;
+    state->port = port;
+
+    state->buffer_len = 0;
+
+    // cyw43_arch_lwip_begin/end should be used around calls into lwIP to ensure correct locking.
+    // You can omit them if you are in a callback from lwIP. Note that when using pico_cyw_arch_poll
+    // these calls are a no-op and can be omitted, but it is a good practice to use them in
+    // case you switch the cyw43_arch type later.
+    cyw43_arch_lwip_begin();
+    err_t err = tcp_connect(state->tcp_pcb, &state->remote_addr, TCP_PORT, tcp_client_connected);
+    cyw43_arch_lwip_end();
+
+    return err == ERR_OK;
+}
+// Perform initialisation
+TCP_CLIENT_T* tcp_client_init(ip_addr_t remote_addr) {
+    TCP_CLIENT_T *state = calloc(1, sizeof(TCP_CLIENT_T));
+    if (!state) {
+        DEBUG_printf("failed to allocate state\n");
+        return NULL;
+    }
+    //ip4addr_aton(remote_addr, &state->remote_addr);
+    ip4_addr_copy(state->remote_addr, remote_addr);
+    return state;
+}
+static err_t tcp_client_sent(void *arg, struct tcp_pcb *tpcb, u16_t len) {
+    TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
+    DEBUG_printf("tcp_client_sent %u\n", len);
+    state->sent_len += len;
+
+    if (state->sent_len >= BUF_SIZE) {
+
+        state->run_count++;
+        if (state->run_count >= TEST_ITERATIONS) {
+            tcp_result(arg, 0);
+            return ERR_OK;
+        }
+
+        // We should receive a new buffer from the server
+        state->buffer_len = 0;
+        state->sent_len = 0;
+        DEBUG_printf("Waiting for buffer from server\n");
+    }
+
+    return ERR_OK;
 }
 
 err_t tcp_client_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err) {
@@ -149,45 +193,7 @@ err_t tcp_client_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err
     return ERR_OK;
 }
 
-static bool tcp_client_open(void *arg) {
-    TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
-    DEBUG_printf("Connecting to %s port %u\n", ip4addr_ntoa(&state->remote_addr), TCP_PORT);
-    state->tcp_pcb = tcp_new_ip_type(IP_GET_TYPE(&state->remote_addr));
-    if (!state->tcp_pcb) {
-        DEBUG_printf("failed to create pcb\n");
-        return false;
-    }
 
-    tcp_arg(state->tcp_pcb, state);
-    tcp_poll(state->tcp_pcb, tcp_client_poll, POLL_TIME_S * 2);
-    tcp_sent(state->tcp_pcb, tcp_client_sent);
-    tcp_recv(state->tcp_pcb, tcp_client_recv);
-    tcp_err(state->tcp_pcb, tcp_client_err);
-
-    state->buffer_len = 0;
-
-    // cyw43_arch_lwip_begin/end should be used around calls into lwIP to ensure correct locking.
-    // You can omit them if you are in a callback from lwIP. Note that when using pico_cyw_arch_poll
-    // these calls are a no-op and can be omitted, but it is a good practice to use them in
-    // case you switch the cyw43_arch type later.
-    cyw43_arch_lwip_begin();
-    err_t err = tcp_connect(state->tcp_pcb, &state->remote_addr, TCP_PORT, tcp_client_connected);
-    cyw43_arch_lwip_end();
-
-    return err == ERR_OK;
-}
-
-// Perform initialisation
-TCP_CLIENT_T* tcp_client_init(ip_addr_t remote_addr) {
-    TCP_CLIENT_T *state = calloc(1, sizeof(TCP_CLIENT_T));
-    if (!state) {
-        DEBUG_printf("failed to allocate state\n");
-        return NULL;
-    }
-    //ip4addr_aton(remote_addr, &state->remote_addr);
-    ip4_addr_copy(state->remote_addr, remote_addr);
-    return state;
-}
 #if 0
 void run_tcp_client_test(void) {
     TCP_CLIENT_T *state = tcp_client_init();

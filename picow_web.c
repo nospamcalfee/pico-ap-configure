@@ -186,7 +186,7 @@ int main() {
 
     struct my_scan_result *likelyAP = NULL;
     httpd_init();
-    TCP_SERVER_T *tcp_serv = tcp_server_init(NULL);
+    void *tcp_serv = tcp_server_init(NULL);
     int connected = 0; //outer loop exit flag when non-zeroS
     do {
         // outer loop, check all available local ssids on the air
