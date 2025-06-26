@@ -9,12 +9,12 @@
 
 #include "lwip/tcp.h"
 
-#define TCP_PORT 4242
 #define DEBUG_printf printf
 #define BUF_SIZE 2048
 
 //user function to send data
 typedef err_t (*tcp_send_fn)(void *arg, struct tcp_pcb *tpcb);
+typedef void (*dns_found_client_callback)(void *state);
 
 struct user_header {
     uint16_t xfer_len;  //amount in the transfer
@@ -26,6 +26,7 @@ struct user_header {
     /* Function to be called when (in-sequence) data has arrived. */
     tcp_recv_fn user_recv;
     tcp_send_fn user_send; //function to send on socket (server only)
+    dns_found_client_callback user_request;
     void *priv; //for user tcp data and ptrs
 };
 
@@ -56,7 +57,7 @@ typedef struct TCP_CLIENT_T_ {
 
 
 TCP_SERVER_T* tcp_server_init(void *priv);
-TCP_CLIENT_T* tcp_client_init(ip_addr_t remote_addr);
+TCP_CLIENT_T* tcp_client_init(void *priv);
 bool tcp_server_open(TCP_SERVER_T *state, uint16_t port, tcp_recv_fn recv,
                         tcp_sent_fn sent, tcp_send_fn user_send);
 //handle status, generally negative
@@ -67,7 +68,8 @@ err_t tcp_server_sent(void *arg, struct tcp_pcb *tpcb, u16_t len);
 err_t tcp_server_send_data(void *arg, struct tcp_pcb *tpcb);
 err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err);
 
-bool tcp_client_open(void *arg, uint16_t port, tcp_recv_fn recv,
-                        tcp_sent_fn sent);
+bool tcp_client_open(void *arg, const char *hostname, uint16_t port,
+                        tcp_recv_fn recv, tcp_sent_fn sent,
+                        dns_found_client_callback client_request);
 
 #endif
