@@ -57,7 +57,7 @@ static err_t tcp_client_close(void *arg) {
             err = ERR_ABRT;
         }
         state->tcp_pcb = NULL;
-        // state->connected = false;
+        state->connected = false;
     }
     return err;
 }
@@ -119,7 +119,11 @@ bool tcp_client_open(void *arg, const char *hostname, uint16_t port,
     err_t err;
     TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
     state->port = port;
-    state->connected = false;
+    state->connected = false; //fixme is this needed?
+    state->buffer_len = 0;
+    state->sent_len = 0;
+    state->run_count = 0; //fixme should be in user
+    state->connected = 0;
 
     state->user.user_recv = recv;
     state->user.user_sent = sent;

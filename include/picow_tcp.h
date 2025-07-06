@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BSD-3-Clause
  * based on:
  * Copyright (c) 2022 Raspberry Pi (Trading) Ltd.
+ * there are some client/server test scripts to run on linux to test the picow code
+ * pico-examples/pico_w/wifi/python_test_tcp
  */
 #ifndef _PICO_TCP_BUFFER_H_
 #define _PICO_TCP_BUFFER_H_
