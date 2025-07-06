@@ -43,6 +43,7 @@ static void dump_bytes(const uint8_t *bptr, uint32_t len) {
 static err_t tcp_client_close(void *arg) {
     TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
     err_t err = ERR_OK;
+    DEBUG_printf("tcp_client_close %p\n", state->tcp_pcb);
     if (state->tcp_pcb != NULL) {
         tcp_arg(state->tcp_pcb, NULL);
         tcp_poll(state->tcp_pcb, NULL, 0);
@@ -56,13 +57,13 @@ static err_t tcp_client_close(void *arg) {
             err = ERR_ABRT;
         }
         state->tcp_pcb = NULL;
-        state->connected = false;
+        // state->connected = false;
     }
     return err;
 }
 
 // Called with results of operation
-static err_t tcp_result(void *arg, int status) {
+err_t tcp_client_result(void *arg, int status) {
     TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
     if (status == 0) {
         DEBUG_printf("client success\n");
@@ -77,7 +78,7 @@ static err_t tcp_client_connected(void *arg, struct tcp_pcb *tpcb, err_t err) {
     TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
     if (err != ERR_OK) {
         printf("connect failed %d\n", err);
-        return tcp_result(arg, err);
+        return tcp_client_result(arg, err);
     }
     state->connected = true;
     DEBUG_printf("Waiting for buffer from server\n");
@@ -86,13 +87,16 @@ static err_t tcp_client_connected(void *arg, struct tcp_pcb *tpcb, err_t err) {
 
 static err_t tcp_client_poll(void *arg, struct tcp_pcb *tpcb) {
     DEBUG_printf("tcp_client_poll\n");
-    return tcp_result(arg, -1); // no response is an error?
+    return tcp_client_result(arg, -1); // no response is an error?
 }
-
+// @note The corresponding pcb is already freed when this callback is called!
+// So no-one including close can access the pcb.
 static void tcp_client_err(void *arg, err_t err) {
+    TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
     if (err != ERR_ABRT) {
         DEBUG_printf("tcp_client_err %d\n", err);
-        tcp_result(arg, err);
+        state->tcp_pcb = NULL; //don't do close!
+        tcp_client_result(arg, err);
     }
 }
 // Call back with a DNS result
@@ -104,7 +108,7 @@ static void dns_found(const char *hostname, const ip_addr_t *ipaddr, void *arg) 
         state->user.user_request(state);
     } else {
         printf("dns request failed\n");
-        tcp_result(state, -1);
+        tcp_client_result(state, -1);
     }
 }
 // can return true which means connected or inprogress, or FALSE== some error
@@ -132,21 +136,34 @@ bool tcp_client_open(void *arg, const char *hostname, uint16_t port,
     // state->dns_request_sent = true;
     if (err == ERR_OK) {
         //here implies remote_addr is set by dns
-        client_request(state); // we connected, finish connect
+        state->user.user_request(state); // we connected, finish connect
     } else if (err != ERR_INPROGRESS) { // ERR_INPROGRESS means expect a callback
         printf("dns request failed\n");
-        tcp_result(state, -1);
+        tcp_client_result(state, -1);
     }
     return true;
 }
+// Perform initialisation
+TCP_CLIENT_T* tcp_client_init(void *priv) {
+    TCP_CLIENT_T *state = calloc(1, sizeof(TCP_CLIENT_T));
+    if (!state) {
+        DEBUG_printf("failed to allocate state\n");
+        return NULL;
+    }
+    state->user.priv = priv; //keep ptr to users data
+    //ip4addr_aton(remote_addr, &state->remote_addr);
+    // ip4_addr_copy(state->remote_addr, remote_addr);
+    return state;
+}
 
 //this function is called only when dns is OK, either immediately or after resolving via dns
-static void client_request(TCP_CLIENT_T *state) {
+void client_request_common(void *arg) {
+    TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
     DEBUG_printf("Connecting to %s port %u\n", ip4addr_ntoa(&state->remote_addr), state->port);
     state->tcp_pcb = tcp_new_ip_type(IP_GET_TYPE(&state->remote_addr));
     if (!state->tcp_pcb) {
         DEBUG_printf("failed to create pcb\n");
-        return; //fixme do I need to do tcp_result
+        return; //fixme do I need to do tcp_client_result
     }
     tcp_arg(state->tcp_pcb, state);
     tcp_poll(state->tcp_pcb, tcp_client_poll, POLL_TIME_S * 2);
@@ -163,22 +180,11 @@ static void client_request(TCP_CLIENT_T *state) {
     cyw43_arch_lwip_begin();
     err_t err = tcp_connect(state->tcp_pcb, &state->remote_addr, state->port, tcp_client_connected);
     cyw43_arch_lwip_end();
+    printf("connect stat = %d\n", err);
 
     return;
 }
-// Perform initialisation
-TCP_CLIENT_T* tcp_client_init(void *priv) {
-    TCP_CLIENT_T *state = calloc(1, sizeof(TCP_CLIENT_T));
-    if (!state) {
-        DEBUG_printf("failed to allocate state\n");
-        return NULL;
-    }
-    state->user.priv = priv; //keep ptr to users data
-    //ip4addr_aton(remote_addr, &state->remote_addr);
-    // ip4_addr_copy(state->remote_addr, remote_addr);
-    return state;
-}
-static err_t tcp_client_sent(void *arg, struct tcp_pcb *tpcb, u16_t len) {
+err_t tcp_client_sent(void *arg, struct tcp_pcb *tpcb, u16_t len) {
     TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
     DEBUG_printf("tcp_client_sent %u\n", len);
     state->sent_len += len;
@@ -187,7 +193,7 @@ static err_t tcp_client_sent(void *arg, struct tcp_pcb *tpcb, u16_t len) {
 
         state->run_count++;
         if (state->run_count >= TEST_ITERATIONS) {
-            tcp_result(arg, 0);
+            tcp_client_result(arg, 0);
             return ERR_OK;
         }
 
@@ -203,7 +209,7 @@ static err_t tcp_client_sent(void *arg, struct tcp_pcb *tpcb, u16_t len) {
 err_t tcp_client_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err) {
     TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
     if (!p) {
-        return tcp_result(arg, -1);
+        return tcp_client_result(arg, -1);
     }
     // this method is callback from lwIP, so cyw43_arch_lwip_begin is not required, however you
     // can use this method to cause an assertion in debug mode, if this method is called when
@@ -228,7 +234,7 @@ err_t tcp_client_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err
         err_t err = tcp_write(tpcb, state->buffer, state->buffer_len, TCP_WRITE_FLAG_COPY);
         if (err != ERR_OK) {
             DEBUG_printf("Failed to write data %d\n", err);
-            return tcp_result(arg, -1);
+            return tcp_client_result(arg, -1);
         }
     }
     return ERR_OK;
@@ -242,7 +248,7 @@ void run_tcp_client_test(void) {
         return;
     }
     if (!tcp_client_open(state)) {
-        tcp_result(state, -1);
+        tcp_client_result(state, -1);
         return;
     }
     while(!state->complete) {

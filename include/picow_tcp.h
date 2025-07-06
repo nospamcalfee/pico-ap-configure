@@ -70,6 +70,9 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err
 
 bool tcp_client_open(void *arg, const char *hostname, uint16_t port,
                         tcp_recv_fn recv, tcp_sent_fn sent,
-                        dns_found_client_callback client_request);
-
+                        dns_found_client_callback request);
+void client_request_common(void *arg);
+err_t tcp_client_sent(void *arg, struct tcp_pcb *tpcb, u16_t len);
+err_t tcp_client_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err);
+err_t tcp_client_result(void *arg, int status);
 #endif

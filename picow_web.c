@@ -187,6 +187,7 @@ int main() {
     struct my_scan_result *likelyAP = NULL;
     httpd_init();
     void *tcp_serv = tcp_server_init(NULL);
+    struct TCP_CLIENT_T_ *tcp_client = tcp_client_init(NULL);
     int connected = 0; //outer loop exit flag when non-zeroS
     do {
         // outer loop, check all available local ssids on the air
@@ -256,10 +257,37 @@ int main() {
     cgi_init();
     printf("CGI Handler initialised\n");
     //start the control tcp server
-    if (!tcp_server_open(tcp_serv, 8088, tcp_server_recv,
-                        tcp_server_sent, tcp_server_send_data)) {
-        tcp_server_result(tcp_serv, -1);
-        //fixme what to do if I cannot start? wait, then reset?
+    // if (!tcp_server_open(tcp_serv, 8088, tcp_server_recv,
+    //                     tcp_server_sent, tcp_server_send_data)) {
+    //     tcp_server_result(tcp_serv, -1);
+    //     //fixme what to do if I cannot start? wait, then reset?
+    // }
+    for (int i = 0; i < 3; i++) {
+        if (!tcp_client_open(tcp_client, "jedediah.local", 4242,
+                            tcp_client_recv, tcp_client_sent,
+                            client_request_common)) {
+            // tcp_client_result(tcp_client, 0);
+            //fixme what to do if I cannot start? wait, then reset?
+        }  else {
+            //as a test wait until client stuff finishes
+            while(!tcp_client->complete) {
+                // the following #ifdef is only here so this same example can be used in multiple modes;
+                // you do not need it in your code
+        #if PICO_CYW43_ARCH_POLL
+                // if you are using pico_cyw43_arch_poll, then you must poll periodically from your
+                // main loop (not from a timer) to check for Wi-Fi driver or lwIP work that needs to be done.
+                cyw43_arch_poll();
+                // you can poll as often as you like, however if you have nothing else to do you can
+                // choose to sleep until either a specified time, or cyw43_arch_poll() has work to do:
+                cyw43_arch_wait_for_work_until(make_timeout_time_ms(1000));
+        #else
+                // if you are not using pico_cyw43_arch_poll, then WiFI driver and lwIP work
+                // is done via interrupt in the background. This sleep is just an example of some (blocking)
+                // work you might be doing.
+                sleep_ms(1000);
+        #endif
+            }
+        }
     }
 
     // Infinite loop

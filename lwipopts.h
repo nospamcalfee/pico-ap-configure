@@ -56,7 +56,7 @@
 #endif
 
 #define ETHARP_DEBUG                LWIP_DBG_OFF
-#define NETIF_DEBUG                 LWIP_DBG_ON
+#define NETIF_DEBUG                 LWIP_DBG_OFF
 #define PBUF_DEBUG                  LWIP_DBG_OFF
 #define API_LIB_DEBUG               LWIP_DBG_OFF
 #define API_MSG_DEBUG               LWIP_DBG_OFF
@@ -69,7 +69,7 @@
 #define MEM_DEBUG                   LWIP_DBG_OFF
 #define MEMP_DEBUG                  LWIP_DBG_OFF
 #define SYS_DEBUG                   LWIP_DBG_OFF
-#define SNTP_DEBUG                  LWIP_DBG_ON
+#define SNTP_DEBUG                  LWIP_DBG_OFF
 #define TCP_DEBUG                   LWIP_DBG_OFF
 #define TCP_INPUT_DEBUG             LWIP_DBG_OFF
 #define TCP_OUTPUT_DEBUG            LWIP_DBG_OFF
@@ -90,7 +90,7 @@
 #define LWIP_AUTOIP 1
 #define LWIP_RAND() ((uint32_t)get_rand_32())
 #define LWIP_NUM_NETIF_CLIENT_DATA 1
-#define MEMP_NUM_SYS_TIMEOUT            (LWIP_NUM_SYS_TIMEOUT_INTERNAL+5)
+#define MEMP_NUM_SYS_TIMEOUT            (LWIP_NUM_SYS_TIMEOUT_INTERNAL+6)
 // This section enables HTTPD server with SSI, SGI
 // and tells server which converted HTML files to use
 #define LWIP_HTTPD 1
