@@ -57,7 +57,6 @@ static err_t tcp_client_close(void *arg) {
             err = ERR_ABRT;
         }
         state->tcp_pcb = NULL;
-        state->connected = false;
     }
     return err;
 }
@@ -70,8 +69,11 @@ err_t tcp_client_result(void *arg, int status) {
     } else {
         DEBUG_printf("client failed %d\n", status);
     }
-    state->complete = true;
-    return tcp_client_close(arg);
+    err_t cls_err = tcp_client_close(arg);
+    if (state->user.completed != NULL) {
+        state->user.completed(arg, status);
+    }
+    return cls_err;
 }
 
 static err_t tcp_client_connected(void *arg, struct tcp_pcb *tpcb, err_t err) {
@@ -80,7 +82,6 @@ static err_t tcp_client_connected(void *arg, struct tcp_pcb *tpcb, err_t err) {
         printf("connect failed %d\n", err);
         return tcp_client_result(arg, err);
     }
-    state->connected = true;
     DEBUG_printf("Waiting for buffer from server\n");
     return ERR_OK;
 }
@@ -99,13 +100,41 @@ static void tcp_client_err(void *arg, err_t err) {
         tcp_client_result(arg, err);
     }
 }
+
+//this function is called only when dns is OK, either immediately or after resolving via dns
+static void client_request_common(void *arg) {
+    TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
+    DEBUG_printf("Connecting to %s port %u\n", ip4addr_ntoa(&state->remote_addr), state->port);
+    state->tcp_pcb = tcp_new_ip_type(IP_GET_TYPE(&state->remote_addr));
+    if (!state->tcp_pcb) {
+        DEBUG_printf("failed to create pcb\n");
+        return; //fixme do I need to do tcp_client_result
+    }
+    tcp_arg(state->tcp_pcb, state);
+    tcp_poll(state->tcp_pcb, tcp_client_poll, POLL_TIME_S * 2);
+    tcp_sent(state->tcp_pcb, state->user.user_sent);
+    tcp_recv(state->tcp_pcb, state->user.user_recv);
+    tcp_err(state->tcp_pcb, tcp_client_err);
+
+    // cyw43_arch_lwip_begin/end should be used around calls into lwIP to ensure correct locking.
+    // You can omit them if you are in a callback from lwIP. Note that when using pico_cyw_arch_poll
+    // these calls are a no-op and can be omitted, but it is a good practice to use them in
+    // case you switch the cyw43_arch type later.
+    cyw43_arch_lwip_begin();
+    err_t err = tcp_connect(state->tcp_pcb, &state->remote_addr, state->port, tcp_client_connected);
+    cyw43_arch_lwip_end();
+    printf("connect stat = %d\n", err);
+
+    return;
+}
+
 // Call back with a DNS result
 static void dns_found(const char *hostname, const ip_addr_t *ipaddr, void *arg) {
     TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
     if (ipaddr != NULL) {
         state->remote_addr = *ipaddr;
         printf("dns address %s\n", ipaddr_ntoa(ipaddr));
-        state->user.user_request(state);
+        client_request_common(state);
     } else {
         printf("dns request failed\n");
         tcp_client_result(state, -1);
@@ -114,20 +143,20 @@ static void dns_found(const char *hostname, const ip_addr_t *ipaddr, void *arg) 
 // can return true which means connected or inprogress, or FALSE== some error
 
 bool tcp_client_open(void *arg, const char *hostname, uint16_t port,
+                        uint8_t *buffer,
                         tcp_recv_fn recv, tcp_sent_fn sent,
-                        dns_found_client_callback client_request) {
+                        complete_callback completed) {
     err_t err;
     TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
     state->port = port;
-    state->connected = false; //fixme is this needed?
-    state->buffer_len = 0;
-    state->sent_len = 0;
-    state->run_count = 0; //fixme should be in user
-    state->connected = 0;
 
+    void *tpriv = state->user.priv; //users private data ptr
+    memset(&state->user, 0, sizeof(state->user)); //clear the user data
+    state->user.priv = tpriv;   //restore the users pointer
     state->user.user_recv = recv;
     state->user.user_sent = sent;
-    state->user.user_request = client_request;
+    state->user.completed = completed;
+    state->user.buffer = buffer;
 
     // cyw43_arch_lwip_begin/end should be used around calls into lwIP to ensure correct locking.
     // You can omit them if you are in a callback from lwIP. Note that when using pico_cyw_arch_poll
@@ -140,7 +169,7 @@ bool tcp_client_open(void *arg, const char *hostname, uint16_t port,
     // state->dns_request_sent = true;
     if (err == ERR_OK) {
         //here implies remote_addr is set by dns
-        state->user.user_request(state); // we connected, finish connect
+        client_request_common(state); // we connected, finish connect
     } else if (err != ERR_INPROGRESS) { // ERR_INPROGRESS means expect a callback
         printf("dns request failed\n");
         tcp_client_result(state, -1);
@@ -160,50 +189,27 @@ TCP_CLIENT_T* tcp_client_init(void *priv) {
     return state;
 }
 
-//this function is called only when dns is OK, either immediately or after resolving via dns
-void client_request_common(void *arg) {
-    TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
-    DEBUG_printf("Connecting to %s port %u\n", ip4addr_ntoa(&state->remote_addr), state->port);
-    state->tcp_pcb = tcp_new_ip_type(IP_GET_TYPE(&state->remote_addr));
-    if (!state->tcp_pcb) {
-        DEBUG_printf("failed to create pcb\n");
-        return; //fixme do I need to do tcp_client_result
-    }
-    tcp_arg(state->tcp_pcb, state);
-    tcp_poll(state->tcp_pcb, tcp_client_poll, POLL_TIME_S * 2);
-    tcp_sent(state->tcp_pcb, state->user.user_sent);
-    tcp_recv(state->tcp_pcb, state->user.user_recv);
-    tcp_err(state->tcp_pcb, tcp_client_err);
 
-    state->buffer_len = 0;
 
-    // cyw43_arch_lwip_begin/end should be used around calls into lwIP to ensure correct locking.
-    // You can omit them if you are in a callback from lwIP. Note that when using pico_cyw_arch_poll
-    // these calls are a no-op and can be omitted, but it is a good practice to use them in
-    // case you switch the cyw43_arch type later.
-    cyw43_arch_lwip_begin();
-    err_t err = tcp_connect(state->tcp_pcb, &state->remote_addr, state->port, tcp_client_connected);
-    cyw43_arch_lwip_end();
-    printf("connect stat = %d\n", err);
-
-    return;
-}
+/*
+ * These functions are protocol specific clients, called from generic client routines
+ */
 err_t tcp_client_sent(void *arg, struct tcp_pcb *tpcb, u16_t len) {
     TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
     DEBUG_printf("tcp_client_sent %u\n", len);
-    state->sent_len += len;
+    state->user.sent_len += len;
 
-    if (state->sent_len >= BUF_SIZE) {
+    if (state->user.sent_len >= BUF_SIZE) {
 
-        state->run_count++;
-        if (state->run_count >= TEST_ITERATIONS) {
+        state->user.count++;
+        if (state->user.count >= TEST_ITERATIONS) {
             tcp_client_result(arg, 0);
             return ERR_OK;
         }
 
         // We should receive a new buffer from the server
-        state->buffer_len = 0;
-        state->sent_len = 0;
+        state->user.buffer_len = 0;
+        state->user.sent_len = 0;
         DEBUG_printf("Waiting for buffer from server\n");
     }
 
@@ -225,17 +231,17 @@ err_t tcp_client_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err
             DUMP_BYTES(q->payload, q->len);
         }
         // Receive the buffer
-        const uint16_t buffer_left = BUF_SIZE - state->buffer_len;
-        state->buffer_len += pbuf_copy_partial(p, state->buffer + state->buffer_len,
+        const uint16_t buffer_left = BUF_SIZE - state->user.buffer_len;
+        state->user.buffer_len += pbuf_copy_partial(p, state->user.buffer + state->user.buffer_len,
                                                p->tot_len > buffer_left ? buffer_left : p->tot_len, 0);
         tcp_recved(tpcb, p->tot_len);
     }
     pbuf_free(p);
 
     // If we have received the whole buffer, send it back to the server
-    if (state->buffer_len == BUF_SIZE) {
-        DEBUG_printf("Writing %d bytes to server\n", state->buffer_len);
-        err_t err = tcp_write(tpcb, state->buffer, state->buffer_len, TCP_WRITE_FLAG_COPY);
+    if (state->user.buffer_len == BUF_SIZE) {
+        DEBUG_printf("Writing %d bytes to server\n", state->user.buffer_len);
+        err_t err = tcp_write(tpcb, state->user.buffer, state->user.buffer_len, TCP_WRITE_FLAG_COPY);
         if (err != ERR_OK) {
             DEBUG_printf("Failed to write data %d\n", err);
             return tcp_client_result(arg, -1);
@@ -244,55 +250,15 @@ err_t tcp_client_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err
     return ERR_OK;
 }
 
+/* every client protocol will have a custom open call.
+   The mainloop only knows to start it up, every so often.
+*/
+static uint8_t buffer[BUF_SIZE];
 
-#if 0
-void run_tcp_client_test(void) {
-    TCP_CLIENT_T *state = tcp_client_init();
-    if (!state) {
-        return;
-    }
-    if (!tcp_client_open(state)) {
-        tcp_client_result(state, -1);
-        return;
-    }
-    while(!state->complete) {
-        // the following #ifdef is only here so this same example can be used in multiple modes;
-        // you do not need it in your code
-#if PICO_CYW43_ARCH_POLL
-        // if you are using pico_cyw43_arch_poll, then you must poll periodically from your
-        // main loop (not from a timer) to check for Wi-Fi driver or lwIP work that needs to be done.
-        cyw43_arch_poll();
-        // you can poll as often as you like, however if you have nothing else to do you can
-        // choose to sleep until either a specified time, or cyw43_arch_poll() has work to do:
-        cyw43_arch_wait_for_work_until(make_timeout_time_ms(1000));
-#else
-        // if you are not using pico_cyw43_arch_poll, then WiFI driver and lwIP work
-        // is done via interrupt in the background. This sleep is just an example of some (blocking)
-        // work you might be doing.
-        sleep_ms(1000);
-#endif
-    }
-    free(state);
+bool tcp_client_sendtest_open(void *arg, const char *hostname, uint16_t port,
+                            complete_callback completed) {
+    //fixme don't start unless I know the earlier call is complete.
+    return tcp_client_open(arg, hostname, port, buffer,
+                        tcp_client_recv, tcp_client_sent,
+                        completed);
 }
-
-int main() {
-    stdio_init_all();
-
-    if (cyw43_arch_init()) {
-        DEBUG_printf("failed to initialise\n");
-        return 1;
-    }
-    cyw43_arch_enable_sta_mode();
-
-    printf("Connecting to Wi-Fi...\n");
-    if (cyw43_arch_wifi_connect_timeout_ms(WIFI_SSID, WIFI_PASSWORD, CYW43_AUTH_WPA2_AES_PSK, 30000)) {
-        printf("failed to connect.\n");
-        return 1;
-    } else {
-        printf("Connected.\n");
-    }
-    run_tcp_client_test();
-    cyw43_arch_deinit();
-    return 0;
-}
-#endif

@@ -265,12 +265,12 @@ int main() {
     // Infinite loop
     while(1) {
         datetime_t t;
+
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
-        if (!tcp_client_open(tcp_client, "jedediah.local", 4242,
-                            tcp_client_recv, tcp_client_sent,
-                            client_request_common)) {
-            //fixme what to do if I cannot start? wait, then reset?
-        }
+
+        bool tcp_client_sendtest_open(void *arg, const char *hostname, uint16_t port,
+                            complete_callback completed);
+        tcp_client_sendtest_open(tcp_client, "jedediah.local", 4242, NULL);
         sleep_ms(9000);
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
         sleep_ms(1000);

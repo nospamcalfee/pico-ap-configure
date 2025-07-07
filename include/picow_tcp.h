@@ -16,19 +16,24 @@
 
 //user function to send data
 typedef err_t (*tcp_send_fn)(void *arg, struct tcp_pcb *tpcb);
-typedef void (*dns_found_client_callback)(void *state);
+// typedef void (*dns_found_client_callback)(void *state);
+typedef void (*complete_callback)(void *state, int status);
 
 struct user_header {
     uint16_t xfer_len;  //amount in the transfer
     uint16_t ver;       //data version
     uint8_t id;         //protocol definition
-    int complete;       //0, not finished
+    uint8_t *buffer;    //users buffer - he knows the length
+    int count;  //available to user code
+    int buffer_len; //amount accumulated so far
+    int sent_len;   //amount sent so far
+    // function to be called when entire user operation is complete */
+    complete_callback completed;
     /* Function to be called when more send buffer space is available. */
     tcp_sent_fn user_sent;
     /* Function to be called when (in-sequence) data has arrived. */
     tcp_recv_fn user_recv;
     tcp_send_fn user_send; //function to send on socket (server only)
-    dns_found_client_callback user_request;
     void *priv; //for user tcp data and ptrs
 };
 
@@ -49,12 +54,6 @@ typedef struct TCP_CLIENT_T_ {
     ip_addr_t remote_addr;
     uint16_t port;      //client only
     struct user_header user;
-    uint8_t buffer[BUF_SIZE];
-    int buffer_len;
-    int sent_len;
-    bool complete;
-    int run_count;
-    bool connected;
 } TCP_CLIENT_T;
 
 
@@ -71,9 +70,10 @@ err_t tcp_server_send_data(void *arg, struct tcp_pcb *tpcb);
 err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err);
 
 bool tcp_client_open(void *arg, const char *hostname, uint16_t port,
+                        uint8_t *buffer,
                         tcp_recv_fn recv, tcp_sent_fn sent,
-                        dns_found_client_callback request);
-void client_request_common(void *arg);
+                        complete_callback completed);
+// void client_request_common(void *arg);
 err_t tcp_client_sent(void *arg, struct tcp_pcb *tpcb, u16_t len);
 err_t tcp_client_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err);
 err_t tcp_client_result(void *arg, int status);
