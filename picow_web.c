@@ -257,11 +257,11 @@ int main() {
     cgi_init();
     printf("CGI Handler initialised\n");
     //start the control tcp server
-    // if (!tcp_server_open(tcp_serv, 8088, tcp_server_recv,
-    //                     tcp_server_sent, tcp_server_send_data)) {
-    //     tcp_server_result(tcp_serv, -1);
-    //     //fixme what to do if I cannot start? wait, then reset?
-    // }
+    if (!tcp_server_open(tcp_serv, 4242, tcp_server_recv,
+                        tcp_server_sent, tcp_server_send_data)) {
+        tcp_server_result(tcp_serv, -1);
+        //fixme what to do if I cannot start? wait, then reset?
+    }
     // Infinite loop
     while(1) {
         datetime_t t;
@@ -270,7 +270,9 @@ int main() {
 
         bool tcp_client_sendtest_open(void *arg, const char *hostname, uint16_t port,
                             complete_callback completed);
-        tcp_client_sendtest_open(tcp_client, "jedediah.local", 4242, NULL);
+        if (!tcp_client_sendtest_open(tcp_client, "jedediah.local", 4242, NULL)) {
+            printf("client connection was busy, could not open");
+        }
         sleep_ms(9000);
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
         sleep_ms(1000);

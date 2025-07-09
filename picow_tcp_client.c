@@ -70,8 +70,9 @@ err_t tcp_client_result(void *arg, int status) {
         DEBUG_printf("client failed %d\n", status);
     }
     err_t cls_err = tcp_client_close(arg);
-    if (state->user.completed != NULL) {
-        state->user.completed(arg, status);
+    state->user.busy = false;    //for pollers, set on open
+    if (state->user.completed_callback != NULL) {
+        state->user.completed_callback(arg, status);
     }
     return cls_err;
 }
@@ -88,7 +89,8 @@ static err_t tcp_client_connected(void *arg, struct tcp_pcb *tpcb, err_t err) {
 
 static err_t tcp_client_poll(void *arg, struct tcp_pcb *tpcb) {
     DEBUG_printf("tcp_client_poll\n");
-    return tcp_client_result(arg, -1); // no response is an error?
+    return ERR_OK;
+    // return tcp_client_result(arg, -1); // no response is an error?
 }
 // @note The corresponding pcb is already freed when this callback is called!
 // So no-one including close can access the pcb.
@@ -145,7 +147,7 @@ static void dns_found(const char *hostname, const ip_addr_t *ipaddr, void *arg) 
 bool tcp_client_open(void *arg, const char *hostname, uint16_t port,
                         uint8_t *buffer,
                         tcp_recv_fn recv, tcp_sent_fn sent,
-                        complete_callback completed) {
+                        complete_callback completed_callback) {
     err_t err;
     TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
     state->port = port;
@@ -155,8 +157,9 @@ bool tcp_client_open(void *arg, const char *hostname, uint16_t port,
     state->user.priv = tpriv;   //restore the users pointer
     state->user.user_recv = recv;
     state->user.user_sent = sent;
-    state->user.completed = completed;
+    state->user.completed_callback = completed_callback;
     state->user.buffer = buffer;
+    state->user.busy = true;
 
     // cyw43_arch_lwip_begin/end should be used around calls into lwIP to ensure correct locking.
     // You can omit them if you are in a callback from lwIP. Note that when using pico_cyw_arch_poll
@@ -243,7 +246,7 @@ err_t tcp_client_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err
         DEBUG_printf("Writing %d bytes to server\n", state->user.buffer_len);
         err_t err = tcp_write(tpcb, state->user.buffer, state->user.buffer_len, TCP_WRITE_FLAG_COPY);
         if (err != ERR_OK) {
-            DEBUG_printf("Failed to write data %d\n", err);
+            DEBUG_printf("tcp_client_recv Failed to write data %d\n", err);
             return tcp_client_result(arg, -1);
         }
     }
@@ -256,9 +259,13 @@ err_t tcp_client_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err
 static uint8_t buffer[BUF_SIZE];
 
 bool tcp_client_sendtest_open(void *arg, const char *hostname, uint16_t port,
-                            complete_callback completed) {
+                            complete_callback completed_callback) {
+    TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
     //fixme don't start unless I know the earlier call is complete.
+    if (state->user.busy) {
+        return false; //could not open, last operation is in progress
+    }
     return tcp_client_open(arg, hostname, port, buffer,
                         tcp_client_recv, tcp_client_sent,
-                        completed);
+                        completed_callback);
 }

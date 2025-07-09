@@ -27,12 +27,10 @@ struct user_header {
     int count;  //available to user code
     int buffer_len; //amount accumulated so far
     int sent_len;   //amount sent so far
-    // function to be called when entire user operation is complete */
-    complete_callback completed;
-    /* Function to be called when more send buffer space is available. */
-    tcp_sent_fn user_sent;
-    /* Function to be called when (in-sequence) data has arrived. */
-    tcp_recv_fn user_recv;
+    bool busy;      //false until completed is called
+    complete_callback completed_callback;   // function to be called when entire user operation is complete */
+    tcp_sent_fn user_sent;  /* Function to be called when more send buffer space is available. */
+    tcp_recv_fn user_recv;  /* Function to be called when (in-sequence) data has arrived. */
     tcp_send_fn user_send; //function to send on socket (server only)
     void *priv; //for user tcp data and ptrs
 };
@@ -40,12 +38,12 @@ struct user_header {
 typedef struct TCP_SERVER_T_ {
     struct tcp_pcb *server_pcb;
     struct tcp_pcb *client_pcb;
-    bool complete;
+    // bool complete;
     uint8_t buffer_sent[BUF_SIZE];
     uint8_t buffer_recv[BUF_SIZE];
     int sent_len;
     int recv_len;
-    int run_count;
+    // int run_count;
     struct user_header user;
 } TCP_SERVER_T;
 
@@ -72,7 +70,7 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err
 bool tcp_client_open(void *arg, const char *hostname, uint16_t port,
                         uint8_t *buffer,
                         tcp_recv_fn recv, tcp_sent_fn sent,
-                        complete_callback completed);
+                        complete_callback completed_callback);
 // void client_request_common(void *arg);
 err_t tcp_client_sent(void *arg, struct tcp_pcb *tpcb, u16_t len);
 err_t tcp_client_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err);
