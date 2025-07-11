@@ -20,6 +20,7 @@
 #define TEST_ITERATIONS 10
 #define POLL_TIME_S 5
 
+static err_t tcp_client_poll(void *arg, struct tcp_pcb *tpcb); //defn
 #if 0
 static void dump_bytes(const uint8_t *bptr, uint32_t len) {
     unsigned int i = 0;
@@ -62,7 +63,7 @@ static err_t tcp_client_close(void *arg) {
 }
 
 // Called with results of operation
-err_t tcp_client_result(void *arg, int status) {
+err_t tcp_client_result(void *arg, err_t status) {
     TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
     if (status == 0) {
         DEBUG_printf("client success\n");
@@ -83,15 +84,10 @@ static err_t tcp_client_connected(void *arg, struct tcp_pcb *tpcb, err_t err) {
         printf("connect failed %d\n", err);
         return tcp_client_result(arg, err);
     }
-    DEBUG_printf("Waiting for buffer from server\n");
+    DEBUG_printf("tcp_client_connected Waiting for buffer from server\n");
     return ERR_OK;
 }
 
-static err_t tcp_client_poll(void *arg, struct tcp_pcb *tpcb) {
-    DEBUG_printf("tcp_client_poll\n");
-    return ERR_OK;
-    // return tcp_client_result(arg, -1); // no response is an error?
-}
 // @note The corresponding pcb is already freed when this callback is called!
 // So no-one including close can access the pcb.
 static void tcp_client_err(void *arg, err_t err) {
@@ -139,7 +135,7 @@ static void dns_found(const char *hostname, const ip_addr_t *ipaddr, void *arg) 
         client_request_common(state);
     } else {
         printf("dns request failed\n");
-        tcp_client_result(state, -1);
+        tcp_client_result(state, ERR_USER);
     }
 }
 // can return true which means connected or inprogress, or FALSE== some error
@@ -175,7 +171,7 @@ bool tcp_client_open(void *arg, const char *hostname, uint16_t port,
         client_request_common(state); // we connected, finish connect
     } else if (err != ERR_INPROGRESS) { // ERR_INPROGRESS means expect a callback
         printf("dns request failed\n");
-        tcp_client_result(state, -1);
+        tcp_client_result(state, err);
     }
     return true;
 }
@@ -197,6 +193,37 @@ TCP_CLIENT_T* tcp_client_init(void *priv) {
 /*
  * These functions are protocol specific clients, called from generic client routines
  */
+/*
+ * This little function tries to start a send. It may fail mainly due to
+ * ERR_MEM memory pressure. In that case, it will be retried by the
+ * tcp_client_poll function.
+ */
+static err_t tcp_client_sending(TCP_CLIENT_T *state, struct tcp_pcb *pcb) {
+    // If we have received the whole buffer, send it back to the server
+    if (state->user.buffer_len == BUF_SIZE) {
+        DEBUG_printf("tcp_client_sending %d bytes to server\n", state->user.buffer_len);
+        err_t err = tcp_write(pcb, state->user.buffer, state->user.buffer_len, TCP_WRITE_FLAG_COPY);
+        if (err != ERR_OK) {
+            state->user.status = err;
+            DEBUG_printf("tcp_client_sending Failed to write data %d\n", err);
+            if (err == ERR_MEM) {
+                return ERR_OK; //wait for memory, will be called again by poll
+            }
+            return tcp_client_result(state, err);
+        }
+    }
+    return ERR_OK;
+}
+
+static err_t tcp_client_poll(void *arg, struct tcp_pcb *tpcb) {
+    TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
+    DEBUG_printf("tcp_client_poll stat=%d\n", state->user.status);
+    if (state->user.status == ERR_MEM) {
+        tcp_client_sending(state, tpcb); //retry send
+    }
+    return ERR_OK;
+}
+
 err_t tcp_client_sent(void *arg, struct tcp_pcb *tpcb, u16_t len) {
     TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
     DEBUG_printf("tcp_client_sent %u\n", len);
@@ -222,14 +249,14 @@ err_t tcp_client_sent(void *arg, struct tcp_pcb *tpcb, u16_t len) {
 err_t tcp_client_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err) {
     TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
     if (!p) {
-        return tcp_client_result(arg, -1);
+        return tcp_client_result(arg, ERR_USER);
     }
     // this method is callback from lwIP, so cyw43_arch_lwip_begin is not required, however you
     // can use this method to cause an assertion in debug mode, if this method is called when
     // cyw43_arch_lwip_begin IS needed
     cyw43_arch_lwip_check();
     if (p->tot_len > 0) {
-        DEBUG_printf("recv %d err %d\n", p->tot_len, err);
+        DEBUG_printf("tcp_client_recv %d err %d\n", p->tot_len, err);
         for (struct pbuf *q = p; q != NULL; q = q->next) {
             DUMP_BYTES(q->payload, q->len);
         }
@@ -241,16 +268,7 @@ err_t tcp_client_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err
     }
     pbuf_free(p);
 
-    // If we have received the whole buffer, send it back to the server
-    if (state->user.buffer_len == BUF_SIZE) {
-        DEBUG_printf("Writing %d bytes to server\n", state->user.buffer_len);
-        err_t err = tcp_write(tpcb, state->user.buffer, state->user.buffer_len, TCP_WRITE_FLAG_COPY);
-        if (err != ERR_OK) {
-            DEBUG_printf("tcp_client_recv Failed to write data %d\n", err);
-            return tcp_client_result(arg, -1);
-        }
-    }
-    return ERR_OK;
+    return tcp_client_sending(state, tpcb);
 }
 
 /* every client protocol will have a custom open call.

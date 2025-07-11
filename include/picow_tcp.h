@@ -11,6 +11,8 @@
 
 #include "lwip/tcp.h"
 
+#define ERR_USER -42
+
 #define DEBUG_printf printf
 #define BUF_SIZE 2048
 
@@ -24,6 +26,7 @@ struct user_header {
     uint16_t ver;       //data version
     uint8_t id;         //protocol definition
     uint8_t *buffer;    //users buffer - he knows the length
+    err_t status; //last error return
     int count;  //available to user code
     int buffer_len; //amount accumulated so far
     int sent_len;   //amount sent so far
@@ -74,5 +77,5 @@ bool tcp_client_open(void *arg, const char *hostname, uint16_t port,
 // void client_request_common(void *arg);
 err_t tcp_client_sent(void *arg, struct tcp_pcb *tpcb, u16_t len);
 err_t tcp_client_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err);
-err_t tcp_client_result(void *arg, int status);
+err_t tcp_client_result(void *arg, err_t status);
 #endif

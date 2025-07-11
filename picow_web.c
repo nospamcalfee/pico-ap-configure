@@ -271,7 +271,7 @@ int main() {
         bool tcp_client_sendtest_open(void *arg, const char *hostname, uint16_t port,
                             complete_callback completed);
         if (!tcp_client_sendtest_open(tcp_client, "jedediah.local", 4242, NULL)) {
-            printf("client connection was busy, could not open");
+            printf("client connection was busy, could not open\n");
         }
         sleep_ms(9000);
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);

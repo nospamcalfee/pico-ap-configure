@@ -67,9 +67,13 @@ err_t tcp_server_result(TCP_SERVER_T *state, int status) {
 }
 
 static err_t tcp_server_poll(void *arg, struct tcp_pcb *tpcb) {
+    TCP_SERVER_T *state = (TCP_SERVER_T*)arg;
     DEBUG_printf("tcp_server_poll_fn\n");
+        if (state->user.status == ERR_MEM) {
+            //on memory low, retry sends
+            state->user.user_send(arg, state->client_pcb);
+    }
     return ERR_OK; //not used here
-    // return tcp_server_result(arg, -1); // no response is an error?
 }
 
 static void tcp_server_err(void *arg, err_t err) {
@@ -145,7 +149,7 @@ err_t tcp_server_sent(void *arg, struct tcp_pcb *tpcb, u16_t len) {
 
         // We should get the data back from the client
         state->recv_len = 0;
-        DEBUG_printf("Waiting for buffer from client\n");
+        DEBUG_printf("tcp_server_sent Waiting for buffer\n");
     }
 
     return ERR_OK;
@@ -155,13 +159,16 @@ err_t tcp_server_sent(void *arg, struct tcp_pcb *tpcb, u16_t len) {
 //sample original userspace functions.
 err_t tcp_server_send_data(void *arg, struct tcp_pcb *tpcb)
 {
+
+    //fixme this could be moved to a separate function.
+    //fixme as now, it rebuilds the buffer on send retries
     TCP_SERVER_T *state = (TCP_SERVER_T*)arg;
     for(int i=0; i< BUF_SIZE; i++) {
         state->buffer_sent[i] = rand();
     }
 
     state->sent_len = 0;
-    DEBUG_printf("Writing %ld bytes to client\n", BUF_SIZE);
+    DEBUG_printf("tcp_server_send_data writing %ld\n", BUF_SIZE);
     // this method is callback from lwIP, so cyw43_arch_lwip_begin is not required, however you
     // can use this method to cause an assertion in debug mode, if this method is called when
     // cyw43_arch_lwip_begin IS needed
@@ -169,7 +176,12 @@ err_t tcp_server_send_data(void *arg, struct tcp_pcb *tpcb)
     err_t err = tcp_write(tpcb, state->buffer_sent, BUF_SIZE, TCP_WRITE_FLAG_COPY);
     if (err != ERR_OK) {
         DEBUG_printf("tcp_server_send_data Failed to write data %d\n", err);
-        return tcp_server_result(arg, -1);
+            state->user.status = err;
+            if (err == ERR_MEM) {
+                return ERR_OK; //wait for memory, will be called again by poll
+            }
+        //real errors exit here
+        return tcp_server_result(arg, err);
     }
     return ERR_OK;
 }
@@ -179,18 +191,9 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err
     TCP_SERVER_T *state = (TCP_SERVER_T*)arg;
     if ((err == ERR_OK || err == ERR_ABRT) && p == NULL) {
         // //remote client closed the connections, free up client stuff
-        // tcp_arg(tpcb, NULL);
-        // tcp_sent(tpcb, NULL);
-        // tcp_recv(tpcb, NULL);
-        // tcp_close(tpcb);
         return tcp_server_result(arg, err);
     }
 
-    // if (!p) {
-    //     return tcp_close_client(state);
-    //     //return ERR_OK; //tcp corruption
-    //     // not an error tcp_server_result(arg, -1);
-    // }
     if ((err == ERR_OK || err == ERR_ABRT) && p != NULL) {
         //this callback means we have some data from the client
 
@@ -215,7 +218,7 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err
             // check it matches
             if (memcmp(state->buffer_sent, state->buffer_recv, BUF_SIZE) != 0) {
                 DEBUG_printf("buffer mismatch\n");
-                return tcp_server_result(arg, -1);
+                return tcp_server_result(arg, ERR_USER);
             }
             DEBUG_printf("tcp_server_recv buffer ok\n");
 
@@ -235,55 +238,3 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err
     }
     return ERR_OK;
 }
-#if 0
-void run_tcp_server_test(void) {
-    TCP_SERVER_T *state = tcp_server_init();
-    if (!state) {
-        return;
-    }
-    if (!tcp_server_open(state)) {
-        tcp_server_result(state, -1);
-        return;
-    }
-    while(!state->complete) {
-        // the following #ifdef is only here so this same example can be used in multiple modes;
-        // you do not need it in your code
-#if PICO_CYW43_ARCH_POLL
-        // if you are using pico_cyw43_arch_poll, then you must poll periodically from your
-        // main loop (not from a timer) to check for Wi-Fi driver or lwIP work that needs to be done.
-        cyw43_arch_poll();
-        // you can poll as often as you like, however if you have nothing else to do you can
-        // choose to sleep until either a specified time, or cyw43_arch_poll() has work to do:
-        cyw43_arch_wait_for_work_until(make_timeout_time_ms(1000));
-#else
-        // if you are not using pico_cyw43_arch_poll, then WiFI driver and lwIP work
-        // is done via interrupt in the background. This sleep is just an example of some (blocking)
-        // work you might be doing.
-        sleep_ms(1000);
-#endif
-    }
-    free(state);
-}
-
-int main() {
-    stdio_init_all();
-
-    if (cyw43_arch_init()) {
-        printf("failed to initialise\n");
-        return 1;
-    }
-
-    cyw43_arch_enable_sta_mode();
-
-    printf("Connecting to Wi-Fi...\n");
-    if (cyw43_arch_wifi_connect_timeout_ms(WIFI_SSID, WIFI_PASSWORD, CYW43_AUTH_WPA2_AES_PSK, 30000)) {
-        printf("failed to connect.\n");
-        return 1;
-    } else {
-        printf("Connected.\n");
-    }
-    run_tcp_server_test();
-    cyw43_arch_deinit();
-    return 0;
-}
-#endif
