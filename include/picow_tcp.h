@@ -28,7 +28,7 @@ struct user_header {
     uint8_t *buffer;    //users buffer - he knows the length
     err_t status; //last error return
     int count;  //available to user code
-    int buffer_len; //amount accumulated so far
+    int recv_len; //amount accumulated so far
     int sent_len;   //amount sent so far
     bool busy;      //false until completed is called
     complete_callback completed_callback;   // function to be called when entire user operation is complete */
@@ -38,15 +38,14 @@ struct user_header {
     void *priv; //for user tcp data and ptrs
 };
 
+// fixme - needs to be created on an accept, so multiple accepts will work.
+// could malloc them, or create a list and limit connects to unused items in list. Which means use and closing must be handled.
 typedef struct TCP_SERVER_T_ {
     struct tcp_pcb *server_pcb;
     struct tcp_pcb *client_pcb;
     // bool complete;
     uint8_t buffer_sent[BUF_SIZE];
     uint8_t buffer_recv[BUF_SIZE];
-    int sent_len;
-    int recv_len;
-    // int run_count;
     struct user_header user;
 } TCP_SERVER_T;
 

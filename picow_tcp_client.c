@@ -66,9 +66,9 @@ static err_t tcp_client_close(void *arg) {
 err_t tcp_client_result(void *arg, err_t status) {
     TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
     if (status == 0) {
-        DEBUG_printf("client success\n");
+        DEBUG_printf("tcp_client_result success\n");
     } else {
-        DEBUG_printf("client failed %d\n", status);
+        DEBUG_printf("tcp_client_result failed %d\n", status);
     }
     err_t cls_err = tcp_client_close(arg);
     state->user.busy = false;    //for pollers, set on open
@@ -200,9 +200,9 @@ TCP_CLIENT_T* tcp_client_init(void *priv) {
  */
 static err_t tcp_client_sending(TCP_CLIENT_T *state, struct tcp_pcb *pcb) {
     // If we have received the whole buffer, send it back to the server
-    if (state->user.buffer_len == BUF_SIZE) {
-        DEBUG_printf("tcp_client_sending %d bytes to server\n", state->user.buffer_len);
-        err_t err = tcp_write(pcb, state->user.buffer, state->user.buffer_len, TCP_WRITE_FLAG_COPY);
+    if (state->user.recv_len == BUF_SIZE) {
+        DEBUG_printf("tcp_client_sending %d bytes to server\n", state->user.recv_len);
+        err_t err = tcp_write(pcb, state->user.buffer, state->user.recv_len, TCP_WRITE_FLAG_COPY);
         if (err != ERR_OK) {
             state->user.status = err;
             DEBUG_printf("tcp_client_sending Failed to write data %d\n", err);
@@ -238,7 +238,7 @@ err_t tcp_client_sent(void *arg, struct tcp_pcb *tpcb, u16_t len) {
         }
 
         // We should receive a new buffer from the server
-        state->user.buffer_len = 0;
+        state->user.recv_len = 0;
         state->user.sent_len = 0;
         DEBUG_printf("Waiting for buffer from server\n");
     }
@@ -261,8 +261,8 @@ err_t tcp_client_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err
             DUMP_BYTES(q->payload, q->len);
         }
         // Receive the buffer
-        const uint16_t buffer_left = BUF_SIZE - state->user.buffer_len;
-        state->user.buffer_len += pbuf_copy_partial(p, state->user.buffer + state->user.buffer_len,
+        const uint16_t buffer_left = BUF_SIZE - state->user.recv_len;
+        state->user.recv_len += pbuf_copy_partial(p, state->user.buffer + state->user.recv_len,
                                                p->tot_len > buffer_left ? buffer_left : p->tot_len, 0);
         tcp_recved(tpcb, p->tot_len);
     }
