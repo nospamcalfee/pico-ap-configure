@@ -56,13 +56,16 @@ static err_t tcp_close_client(void *arg) {
 
 //handle status, generally negative
 err_t tcp_server_result(TCP_SERVER_T *state, int status) {
-     // = (TCP_SERVER_T*)arg;
     if (status == 0) {
         DEBUG_printf("tcp_server_result test success\n");
     } else {
         DEBUG_printf("tcp_server_result test failed %d\n", status);
         // state->complete = true; fixme not needed?
     }
+    if (state->user.completed_callback != NULL) {
+        state->user.completed_callback(state, status);
+    }
+
     return tcp_close_client(state);
 }
 
@@ -109,7 +112,8 @@ static err_t tcp_server_accept(void *arg, struct tcp_pcb *client_pcb, err_t err)
 }
 
 bool tcp_server_open(TCP_SERVER_T *state, uint16_t port, tcp_recv_fn recv,
-                        tcp_sent_fn sent, tcp_send_fn user_send) {
+                        tcp_sent_fn sent, tcp_send_fn user_send,
+                        complete_callback complete) {
     DEBUG_printf("Starting server at %s on port %u\n", ip4addr_ntoa(netif_ip4_addr(netif_list)), port);
 
     struct tcp_pcb *pcb = tcp_new_ip_type(IPADDR_TYPE_ANY);
@@ -121,6 +125,7 @@ bool tcp_server_open(TCP_SERVER_T *state, uint16_t port, tcp_recv_fn recv,
     state->user.user_recv = recv;
     state->user.user_send = user_send;
     state->user.user_sent = sent;
+    state->user.completed_callback = complete;
 
     err_t err = tcp_bind(pcb, NULL, port);
     if (err) {
@@ -239,4 +244,21 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err
         pbuf_free(p);
     }
     return ERR_OK;
+}
+/* every client protocol will have a custom open call.
+   The mainloop only knows to start it up, every so often.
+*/
+static uint8_t buffer[BUF_SIZE];
+
+bool tcp_service_sendtest_open(void *arg, uint16_t port,
+                               complete_callback completed_callback) {
+    TCP_SERVER_T *state = (TCP_SERVER_T*)arg;
+    err_t err = tcp_server_open(state, port, tcp_server_recv,
+                        tcp_server_sent, tcp_server_send_data,
+                        completed_callback);
+    return err;
+
+    // if (state->user.busy) {
+    //     return false; //could not open, last operation is in progress
+    // }
 }

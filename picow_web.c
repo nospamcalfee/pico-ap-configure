@@ -257,9 +257,10 @@ int main() {
     cgi_init();
     printf("CGI Handler initialised\n");
     //start the control tcp server
-    if (!tcp_server_open(tcp_serv, 4242, tcp_server_recv,
-                        tcp_server_sent, tcp_server_send_data)) {
-        tcp_server_result(tcp_serv, -1);
+    bool tcp_service_sendtest_open(void *arg, uint16_t port,
+                               complete_callback completed_callback);
+    if (!tcp_service_sendtest_open(tcp_serv, 4242, NULL)) {
+        tcp_server_result(tcp_serv, ERR_USER);
         //fixme what to do if I cannot start? wait, then reset?
     }
     // Infinite loop

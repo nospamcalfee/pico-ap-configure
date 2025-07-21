@@ -22,15 +22,16 @@ typedef err_t (*tcp_send_fn)(void *arg, struct tcp_pcb *tpcb);
 typedef void (*complete_callback)(void *state, int status);
 
 struct user_header {
-    uint16_t xfer_len;  //amount in the transfer
-    uint16_t ver;       //data version
-    uint8_t id;         //protocol definition
     uint8_t *buffer;    //users buffer - he knows the length
+
+    // these have to be unique per client connection via accept.
     err_t status; //last error return
     int count;  //available to user code
     int recv_len; //amount accumulated so far
     int sent_len;   //amount sent so far
     bool busy;      //false until completed is called
+
+    //these are for all connections on this protocol
     complete_callback completed_callback;   // function to be called when entire user operation is complete */
     tcp_sent_fn user_sent;  /* Function to be called when more send buffer space is available. */
     tcp_recv_fn user_recv;  /* Function to be called when (in-sequence) data has arrived. */
@@ -44,7 +45,7 @@ typedef struct TCP_SERVER_T_ {
     struct tcp_pcb *server_pcb;
     struct tcp_pcb *client_pcb;
     // bool complete;
-    uint8_t buffer_sent[BUF_SIZE];
+    uint8_t buffer_sent[BUF_SIZE]; //these are very protocol specific
     uint8_t buffer_recv[BUF_SIZE];
     struct user_header user;
 } TCP_SERVER_T;
@@ -60,7 +61,8 @@ typedef struct TCP_CLIENT_T_ {
 TCP_SERVER_T* tcp_server_init(void *priv);
 TCP_CLIENT_T* tcp_client_init(void *priv);
 bool tcp_server_open(TCP_SERVER_T *state, uint16_t port, tcp_recv_fn recv,
-                        tcp_sent_fn sent, tcp_send_fn user_send);
+                        tcp_sent_fn sent, tcp_send_fn user_send,
+                        complete_callback complete);
 //handle status, generally negative
 err_t tcp_server_result(TCP_SERVER_T *state, int status);
 
