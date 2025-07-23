@@ -89,8 +89,18 @@ the picow. In an IOT situation maybe several devices need to be configured,
 so maybe to make this easier an unnamed device id named webapp_01_9a_bb where
 the funny numbers are the low 3 bytes of the built-in MAC address.
 
+If you have already given the picow a name, it will appear in the wifi
+available list on your attaching device (instead of the example
+webapp_01_9a_bb). You can connect to this ap, but right now the dhcp server
+on the picow ap is not working, so you have to set the connecting device to a
+fixed ip in the range 192.168.4.2 to 192.168.4.250. Then you can hopefully
+connect with your browser to the picow ap which is running at ip 192.168.4.1.
+Then you can configure your picow to give it a name and the first wifi
+ssid/password you will try. Like most IT stuff this uses the most magic and
+luck at setting up. After doing it several times, maybe it will be clearer.
+
 Second they must enter their local wifi name and sometimes complicated wifi
-passwords.
+passwords into the picow website either on the initial connection.
 
 Finally, the connecting device has to have a browser connected on this new
 network to 192.168.4.1
@@ -139,14 +149,25 @@ configuration and usage.
 
 In many iot apps, especially ones that do not use mdns, each device needs to
 be configured - setting ssid and password as here, but also setting a fixed
-IP/Mask to be used. I have not done that yet, maybe later, but it is a simple
-extension of this example's POST handling.
+IP/Mask to be used. I have not done fixed IP stuff yet, maybe later, but it is a
+simple extension of this example's POST handling.
 
 If I don't get ntp time from a server, I cannot do regular IOT timing.
 Problems need to be reported on the web page - like no ntp or no comm.
 
 I need watchdog reset - like an arcade game, the only big sin is not not be
 ready for a coin or in this case IOT time handling.
+
+### developer SNAFU
+
+It is possible to mess up the flash storing ssids/password and names. If you
+absolutely cannot get a system under developement to start or allow
+configuration as a website, you must nuke all the flash. All "ssids/password
+and names" are stored in a reserved area of flash. Programs under debug do
+not erase or modify this area. So it may be necessary to "nuke" all the flash
+to get development issues straight. Look for the
+file .../pico-examples/build/flash/nuke/flash_nuke.uf2 to erase everything
+and start over.
 
 ### Tricks to use CGI-POST handling
 

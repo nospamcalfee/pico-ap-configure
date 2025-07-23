@@ -60,7 +60,7 @@ typedef struct TCP_CLIENT_T_ {
 
 TCP_SERVER_T* tcp_server_init(void *priv);
 TCP_CLIENT_T* tcp_client_init(void *priv);
-bool tcp_server_open(TCP_SERVER_T *state, uint16_t port, tcp_recv_fn recv,
+err_t tcp_server_open(TCP_SERVER_T *state, uint16_t port, tcp_recv_fn recv,
                         tcp_sent_fn sent, tcp_send_fn user_send,
                         complete_callback complete);
 //handle status, generally negative
@@ -79,4 +79,8 @@ bool tcp_client_open(void *arg, const char *hostname, uint16_t port,
 err_t tcp_client_sent(void *arg, struct tcp_pcb *tpcb, u16_t len);
 err_t tcp_client_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err);
 err_t tcp_client_result(void *arg, err_t status);
+
+//per server defs
+err_t tcp_service_sendtest_init_open(uint16_t port,
+                               complete_callback completed_callback);
 #endif

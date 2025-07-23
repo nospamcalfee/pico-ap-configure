@@ -111,7 +111,7 @@ static err_t tcp_server_accept(void *arg, struct tcp_pcb *client_pcb, err_t err)
     return state->user.user_send(arg, state->client_pcb);
 }
 
-bool tcp_server_open(TCP_SERVER_T *state, uint16_t port, tcp_recv_fn recv,
+err_t tcp_server_open(TCP_SERVER_T *state, uint16_t port, tcp_recv_fn recv,
                         tcp_sent_fn sent, tcp_send_fn user_send,
                         complete_callback complete) {
     DEBUG_printf("Starting server at %s on port %u\n", ip4addr_ntoa(netif_ip4_addr(netif_list)), port);
@@ -129,8 +129,8 @@ bool tcp_server_open(TCP_SERVER_T *state, uint16_t port, tcp_recv_fn recv,
 
     err_t err = tcp_bind(pcb, NULL, port);
     if (err) {
-        DEBUG_printf("failed to bind to port %u\n", port);
-        return false;
+        DEBUG_printf("failed to bind to port %u err=%d\n", port, err);
+        return err;
     }
 
     state->server_pcb = tcp_listen_with_backlog(pcb, 1);
@@ -139,12 +139,12 @@ bool tcp_server_open(TCP_SERVER_T *state, uint16_t port, tcp_recv_fn recv,
         if (pcb) {
             tcp_close(pcb);
         }
-        return false;
+        return ERR_MEM;
     }
 
     tcp_arg(state->server_pcb, state);
     tcp_accept(state->server_pcb, tcp_server_accept);
-    return true;
+    return ERR_OK;
 }
 
 err_t tcp_server_sent(void *arg, struct tcp_pcb *tpcb, u16_t len) {
@@ -247,18 +247,17 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err
 }
 /* every client protocol will have a custom open call.
    The mainloop only knows to start it up, every so often.
-*/
-static uint8_t buffer[BUF_SIZE];
 
-bool tcp_service_sendtest_open(void *arg, uint16_t port,
+   For this test, malloc the server, but never free it. frees cause
+   fragmentation and stale pointers. Embedded wants predictable.
+*/
+
+err_t tcp_service_sendtest_init_open(uint16_t port,
                                complete_callback completed_callback) {
-    TCP_SERVER_T *state = (TCP_SERVER_T*)arg;
-    err_t err = tcp_server_open(state, port, tcp_server_recv,
+    TCP_SERVER_T *tcp_serv = tcp_server_init(NULL);
+
+    err_t err = tcp_server_open(tcp_serv, port, tcp_server_recv,
                         tcp_server_sent, tcp_server_send_data,
                         completed_callback);
     return err;
-
-    // if (state->user.busy) {
-    //     return false; //could not open, last operation is in progress
-    // }
 }

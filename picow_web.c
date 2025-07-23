@@ -85,6 +85,7 @@ void be_access_point(char *ap_name) {
 
     cyw43_arch_enable_ap_mode(ap_name, password, CYW43_AUTH_WPA2_AES_PSK);
 
+    //this sets your default ip/mask (192.168.4.1/255.255.255.0)
     ip4_addr_t mask;
     IP4_ADDR(ip_2_ip4(&post_state->gw), 192, 168, 4, 1);
     IP4_ADDR(ip_2_ip4(&mask), 255, 255, 255, 0);
@@ -186,7 +187,6 @@ int main() {
 
     struct my_scan_result *likelyAP = NULL;
     httpd_init();
-    void *tcp_serv = tcp_server_init(NULL);
     struct TCP_CLIENT_T_ *tcp_client = tcp_client_init(NULL);
     int connected = 0; //outer loop exit flag when non-zeroS
     do {
@@ -257,12 +257,7 @@ int main() {
     cgi_init();
     printf("CGI Handler initialised\n");
     //start the control tcp server
-    bool tcp_service_sendtest_open(void *arg, uint16_t port,
-                               complete_callback completed_callback);
-    if (!tcp_service_sendtest_open(tcp_serv, 4242, NULL)) {
-        tcp_server_result(tcp_serv, ERR_USER);
-        //fixme what to do if I cannot start? wait, then reset?
-    }
+    err_t err_open = tcp_service_sendtest_init_open(4242, NULL);
     // Infinite loop
     while(1) {
         datetime_t t;
