@@ -275,13 +275,20 @@ err_t tcp_client_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err
    The mainloop only knows to start it up, every so often.
 */
 static uint8_t buffer[BUF_SIZE];
+static int fail_count;
 
 bool tcp_client_sendtest_open(void *arg, const char *hostname, uint16_t port,
                             complete_callback completed_callback) {
     TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
     //fixme don't start unless I know the earlier call is complete.
     if (state->user.busy) {
-        return false; //could not open, last operation is in progress
+        if (fail_count++ > 10) {
+            //if something happened,
+            printf("clear the busy flag to restart\n");
+            state->user.busy = false;
+        } else {
+            return false; //could not open, last operation is in progress
+        }
     }
     return tcp_client_open(arg, hostname, port, buffer,
                         tcp_client_recv, tcp_client_sent,
