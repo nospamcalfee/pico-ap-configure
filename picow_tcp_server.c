@@ -192,10 +192,10 @@ static err_t tcp_server_send_data(void *arg, struct tcp_pcb *tpcb)
     err_t err = tcp_write(tpcb, per_client->buffer_sent, BUF_SIZE, TCP_WRITE_FLAG_COPY);
     if (err != ERR_OK) {
         DEBUG_printf("tcp_server_send_data Failed to write data %d\n", err);
-            per_client->status = err;
-            if (err == ERR_MEM) {
-                return ERR_OK; //wait for memory, will be called again by poll
-            }
+        per_client->status = err;
+        if (err == ERR_MEM) {
+            return ERR_OK; //wait for memory, will be called again by poll
+        }
         //real errors exit here
         return tcp_server_result(per_client, err);
     }

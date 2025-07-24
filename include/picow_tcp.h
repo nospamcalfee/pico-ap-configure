@@ -57,7 +57,7 @@ struct server_per_client {
 // fixme - needs to be created on an accept, so multiple accepts will work.
 // could malloc them, or create a list and limit connects to unused items in list. Which means use and closing must be handled.
 // avoid memory problems, create all connections on server startup
-#define MAX_CONNECTIONS 1
+#define MAX_CONNECTIONS 2
 typedef struct TCP_SERVER_T_ {
     struct tcp_pcb *server_pcb;
     //these are for all connections on this protocol
