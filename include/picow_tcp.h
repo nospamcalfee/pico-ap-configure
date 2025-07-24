@@ -39,15 +39,33 @@ struct user_header {
     void *priv; //for user tcp data and ptrs
 };
 
-// fixme - needs to be created on an accept, so multiple accepts will work.
-// could malloc them, or create a list and limit connects to unused items in list. Which means use and closing must be handled.
-typedef struct TCP_SERVER_T_ {
-    struct tcp_pcb *server_pcb;
-    struct tcp_pcb *client_pcb;
-    // bool complete;
+struct TCP_SERVER_T_; //forward reference
+// data required after a client connects multiple simultaneous clients require
+// multiple of these structs limit to some max number to control memory use
+struct server_per_client {
+    struct TCP_SERVER_T_ *parent; //pointer back to server data
+    struct tcp_pcb *client_pcb; //unused slot if NULL here
     uint8_t buffer_sent[BUF_SIZE]; //these are very protocol specific
     uint8_t buffer_recv[BUF_SIZE];
-    struct user_header user;
+
+    err_t status; //last error return
+    int count;  //available to user code
+    int recv_len; //amount accumulated so far
+    int sent_len;   //amount sent so far
+    // bool busy;   //true until completed is called, when false can be reused
+};
+// fixme - needs to be created on an accept, so multiple accepts will work.
+// could malloc them, or create a list and limit connects to unused items in list. Which means use and closing must be handled.
+// avoid memory problems, create all connections on server startup
+#define MAX_CONNECTIONS 1
+typedef struct TCP_SERVER_T_ {
+    struct tcp_pcb *server_pcb;
+    //these are for all connections on this protocol
+    complete_callback completed_callback;   // function to be called when entire user operation is complete */
+    tcp_sent_fn user_sent;  /* Function to be called when more send buffer space is available. */
+    tcp_recv_fn user_recv;  /* Function to be called when (in-sequence) data has arrived. */
+    tcp_send_fn user_send; //function to send on socket (server only)
+    struct server_per_client per_accept[MAX_CONNECTIONS];
 } TCP_SERVER_T;
 
 typedef struct TCP_CLIENT_T_ {
@@ -58,18 +76,13 @@ typedef struct TCP_CLIENT_T_ {
 } TCP_CLIENT_T;
 
 
-TCP_SERVER_T* tcp_server_init(void *priv);
+TCP_SERVER_T* tcp_server_init(void);
 TCP_CLIENT_T* tcp_client_init(void *priv);
 err_t tcp_server_open(TCP_SERVER_T *state, uint16_t port, tcp_recv_fn recv,
                         tcp_sent_fn sent, tcp_send_fn user_send,
                         complete_callback complete);
-//handle status, generally negative
-err_t tcp_server_result(TCP_SERVER_T *state, int status);
-
 
 err_t tcp_server_sent(void *arg, struct tcp_pcb *tpcb, u16_t len);
-err_t tcp_server_send_data(void *arg, struct tcp_pcb *tpcb);
-err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err);
 
 bool tcp_client_open(void *arg, const char *hostname, uint16_t port,
                         uint8_t *buffer,

@@ -18,63 +18,55 @@
 #define TEST_ITERATIONS 10
 #define POLL_TIME_S 5
 
-TCP_SERVER_T* tcp_server_init(void *priv) {
+TCP_SERVER_T* tcp_server_init(void) {
     TCP_SERVER_T *state = calloc(1, sizeof(TCP_SERVER_T));
     if (!state) {
         DEBUG_printf("failed to allocate state\n");
         return NULL;
     }
-    state->user.priv = priv; //set user pointer
     return state;
 }
 // I want the server to stay alive and accepting.
 // so errors or successes only close the client.
-static err_t tcp_close_client(void *arg) {
-    TCP_SERVER_T *state = (TCP_SERVER_T*)arg;
+static err_t tcp_close_client(struct server_per_client *per_client) {
     err_t err = ERR_OK;
-    if (state->client_pcb != NULL) {
-        tcp_arg(state->client_pcb, NULL);
-        tcp_poll(state->client_pcb, NULL, 0);
-        tcp_sent(state->client_pcb, NULL);
-        tcp_recv(state->client_pcb, NULL);
-        tcp_err(state->client_pcb, NULL);
-        err = tcp_close(state->client_pcb);
+    if (per_client->client_pcb != NULL) {
+        tcp_arg(per_client->client_pcb, NULL);
+        tcp_poll(per_client->client_pcb, NULL, 0);
+        tcp_sent(per_client->client_pcb, NULL);
+        tcp_recv(per_client->client_pcb, NULL);
+        tcp_err(per_client->client_pcb, NULL);
+        err = tcp_close(per_client->client_pcb);
         if (err != ERR_OK) {
             DEBUG_printf("close failed %d, calling abort\n", err);
-            tcp_abort(state->client_pcb);
+            tcp_abort(per_client->client_pcb);
             err = ERR_ABRT;
         }
-        state->client_pcb = NULL;
+        per_client->client_pcb = NULL;
     }
-    // if (state->server_pcb) {
-    //     tcp_arg(state->server_pcb, NULL);
-    //     tcp_close(state->server_pcb);
-    //     state->server_pcb = NULL;
-    // }
     return err;
 }
 
-//handle status, generally negative
-err_t tcp_server_result(TCP_SERVER_T *state, int status) {
+//handle status per connection
+err_t tcp_server_result(struct server_per_client *per_client, int status) {
     if (status == 0) {
         DEBUG_printf("tcp_server_result test success\n");
     } else {
         DEBUG_printf("tcp_server_result test failed %d\n", status);
-        // state->complete = true; fixme not needed?
     }
-    if (state->user.completed_callback != NULL) {
-        state->user.completed_callback(state, status);
+    if (per_client->parent->completed_callback != NULL) {
+        per_client->parent->completed_callback(per_client, status);
     }
 
-    return tcp_close_client(state);
+    return tcp_close_client(per_client);
 }
 
 static err_t tcp_server_poll(void *arg, struct tcp_pcb *tpcb) {
-    TCP_SERVER_T *state = (TCP_SERVER_T*)arg;
+    struct server_per_client *per_client = (struct server_per_client *)arg;
     DEBUG_printf("tcp_server_poll_fn\n");
-        if (state->user.status == ERR_MEM) {
+        if (per_client->status == ERR_MEM) {
             //on memory low, retry sends
-            state->user.user_send(arg, state->client_pcb);
+            per_client->parent->user_send(per_client, per_client->client_pcb);
     }
     return ERR_OK; //not used here
 }
@@ -90,25 +82,44 @@ static void tcp_server_err(void *arg, err_t err) {
  * fixme - on each accept create a new state block, so multiple connections can work
  */
 static err_t tcp_server_accept(void *arg, struct tcp_pcb *client_pcb, err_t err) {
-    TCP_SERVER_T *state = (TCP_SERVER_T*)arg;
+    TCP_SERVER_T *server_state = (TCP_SERVER_T*)arg;
+    struct server_per_client *per_client = NULL;
     if (err != ERR_OK || client_pcb == NULL) {
         DEBUG_printf("Failure in accept\n");
         tcp_server_result(arg, err);
         return ERR_VAL;
     }
+    //find a free slot for this connection
+    int i;
+    for (i = 0; i < MAX_CONNECTIONS; i++) {
+        if (server_state->per_accept[i].client_pcb == NULL) {
+            per_client = &server_state->per_accept[i];
+            break;
+        }
+    }
+    if (per_client == NULL) {
+        //all clients are busy, fail accept
+        err_t err = tcp_close(client_pcb);
+        if (err != ERR_OK) {
+            DEBUG_printf("close failed %d, calling abort\n", err);
+            // tcp_abort(state->client_pcb); //fixme what here?
+        }
+        return ERR_MEM; //fail the accept
+    }
     DEBUG_printf("tcp_server_accept new Cl connected\n");
 
-    state->client_pcb = client_pcb;
-    tcp_arg(client_pcb, state);
-    tcp_sent(client_pcb, state->user.user_sent); //tcp_server_sent);
-    tcp_recv(client_pcb, state->user.user_recv); //tcp_server_recv);
+    per_client->parent = server_state;
+    per_client->client_pcb = client_pcb;
+    tcp_arg(client_pcb, per_client);
+    tcp_sent(client_pcb, server_state->user_sent); //tcp_server_sent);
+    tcp_recv(client_pcb, server_state->user_recv); //tcp_server_recv);
     tcp_poll(client_pcb, tcp_server_poll, POLL_TIME_S * 2);
     tcp_err(client_pcb, tcp_server_err);
 
-    state->user.count = 0; //new user test count
+    per_client->count = 0; //new user test count
 
     // app specific send on connnect
-    return state->user.user_send(arg, state->client_pcb);
+    return server_state->user_send(per_client, per_client->client_pcb);
 }
 
 err_t tcp_server_open(TCP_SERVER_T *state, uint16_t port, tcp_recv_fn recv,
@@ -121,11 +132,10 @@ err_t tcp_server_open(TCP_SERVER_T *state, uint16_t port, tcp_recv_fn recv,
         DEBUG_printf("failed to create pcb\n");
         return false;
     }
-    memset(&state->user, 0, sizeof(state->user)); //clear the user data
-    state->user.user_recv = recv;
-    state->user.user_send = user_send;
-    state->user.user_sent = sent;
-    state->user.completed_callback = complete;
+    state->user_recv = recv;
+    state->user_send = user_send;
+    state->user_sent = sent;
+    state->completed_callback = complete;
 
     err_t err = tcp_bind(pcb, NULL, port);
     if (err) {
@@ -148,14 +158,14 @@ err_t tcp_server_open(TCP_SERVER_T *state, uint16_t port, tcp_recv_fn recv,
 }
 
 err_t tcp_server_sent(void *arg, struct tcp_pcb *tpcb, u16_t len) {
-    TCP_SERVER_T *state = (TCP_SERVER_T*)arg;
+    struct server_per_client *per_client = (struct server_per_client*) arg;
     DEBUG_printf("tcp_server_sent %u\n", len);
-    state->user.sent_len += len;
+    per_client->sent_len += len;
 
-    if (state->user.sent_len >= BUF_SIZE) {
+    if (per_client->sent_len >= BUF_SIZE) {
 
         // We should get the data back from the client
-        state->user.recv_len = 0;
+        per_client->recv_len = 0;
         DEBUG_printf("tcp_server_sent Waiting for buffer\n");
     }
 
@@ -164,41 +174,40 @@ err_t tcp_server_sent(void *arg, struct tcp_pcb *tpcb, u16_t len) {
 
 
 //sample original userspace functions.
-err_t tcp_server_send_data(void *arg, struct tcp_pcb *tpcb)
+static err_t tcp_server_send_data(void *arg, struct tcp_pcb *tpcb)
 {
-
+    struct server_per_client *per_client = (struct server_per_client *)arg;
     //fixme this could be moved to a separate function.
     //fixme as now, it rebuilds the buffer on send retries
-    TCP_SERVER_T *state = (TCP_SERVER_T*)arg;
     for(int i=0; i< BUF_SIZE; i++) {
-        state->buffer_sent[i] = rand();
+        per_client->buffer_sent[i] = rand();
     }
 
-    state->user.sent_len = 0;
+    per_client->sent_len = 0;
     DEBUG_printf("tcp_server_send_data writing %ld\n", BUF_SIZE);
     // this method is callback from lwIP, so cyw43_arch_lwip_begin is not required, however you
     // can use this method to cause an assertion in debug mode, if this method is called when
     // cyw43_arch_lwip_begin IS needed
     cyw43_arch_lwip_check();
-    err_t err = tcp_write(tpcb, state->buffer_sent, BUF_SIZE, TCP_WRITE_FLAG_COPY);
+    err_t err = tcp_write(tpcb, per_client->buffer_sent, BUF_SIZE, TCP_WRITE_FLAG_COPY);
     if (err != ERR_OK) {
         DEBUG_printf("tcp_server_send_data Failed to write data %d\n", err);
-            state->user.status = err;
+            per_client->status = err;
             if (err == ERR_MEM) {
                 return ERR_OK; //wait for memory, will be called again by poll
             }
         //real errors exit here
-        return tcp_server_result(arg, err);
+        return tcp_server_result(per_client, err);
     }
     return ERR_OK;
 }
 
 //another app specific routine
-err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err) {
-    TCP_SERVER_T *state = (TCP_SERVER_T*)arg;
+static err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err) {
+    struct server_per_client *per_client = (struct server_per_client *)arg;
     if ((err == ERR_OK || err == ERR_ABRT) && p == NULL) {
         // //remote client closed the connections, free up client stuff
-        return tcp_server_result(arg, err);
+        return tcp_server_result(per_client, err);
     }
 
     if ((err == ERR_OK || err == ERR_ABRT) && p != NULL) {
@@ -209,35 +218,35 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err
         // cyw43_arch_lwip_begin IS needed
         cyw43_arch_lwip_check();
         if (p->tot_len > 0) {
-            DEBUG_printf("tcp_server_recv %d/%d err %d\n", p->tot_len, state->user.recv_len, err);
+            DEBUG_printf("tcp_server_recv %d/%d err %d\n", p->tot_len, per_client->recv_len, err);
 
             // Receive the buffer
-            const uint16_t buffer_left = BUF_SIZE - state->user.recv_len;
-            state->user.recv_len += pbuf_copy_partial(p, state->buffer_recv + state->user.recv_len,
+            const uint16_t buffer_left = BUF_SIZE - per_client->recv_len;
+            per_client->recv_len += pbuf_copy_partial(p, per_client->buffer_recv + per_client->recv_len,
                                                  p->tot_len > buffer_left ? buffer_left : p->tot_len, 0);
             tcp_recved(tpcb, p->tot_len);
         }
         pbuf_free(p);
 
         // Have we have received the whole buffer
-        if (state->user.recv_len == BUF_SIZE) {
+        if (per_client->recv_len == BUF_SIZE) {
 
             // check it matches
-            if (memcmp(state->buffer_sent, state->buffer_recv, BUF_SIZE) != 0) {
+            if (memcmp(per_client->buffer_sent, per_client->buffer_recv, BUF_SIZE) != 0) {
                 DEBUG_printf("buffer mismatch\n");
-                return tcp_server_result(arg, ERR_USER);
+                return tcp_server_result(per_client, ERR_USER);
             }
             DEBUG_printf("tcp_server_recv buffer ok\n");
 
             // Test completed?
-            state->user.count++;
-            if (state->user.count >= TEST_ITERATIONS) {
-                tcp_server_result(arg, 0);
+            per_client->count++;
+            if (per_client->count >= TEST_ITERATIONS) {
+                tcp_server_result(per_client, 0);
                 return ERR_OK;
             }
 
             // Send another buffer
-            return state->user.user_send(arg, state->client_pcb);
+            return per_client->parent->user_send(per_client, per_client->client_pcb);
         }
     } else {
         DEBUG_printf("tcp_server_recv some funny error condition, still free the pbuf\n");
@@ -254,7 +263,7 @@ err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err
 
 err_t tcp_service_sendtest_init_open(uint16_t port,
                                complete_callback completed_callback) {
-    TCP_SERVER_T *tcp_serv = tcp_server_init(NULL);
+    TCP_SERVER_T *tcp_serv = tcp_server_init();
 
     err_t err = tcp_server_open(tcp_serv, port, tcp_server_recv,
                         tcp_server_sent, tcp_server_send_data,
