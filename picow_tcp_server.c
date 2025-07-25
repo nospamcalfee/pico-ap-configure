@@ -63,7 +63,7 @@ err_t tcp_server_result(struct server_per_client *per_client, int status) {
 
 static err_t tcp_server_poll(void *arg, struct tcp_pcb *tpcb) {
     struct server_per_client *per_client = (struct server_per_client *)arg;
-    DEBUG_printf("tcp_server_poll_fn\n");
+    DEBUG_printf("tcp_server_poll\n");
         if (per_client->status == ERR_MEM) {
             //on memory low, retry sends
             per_client->parent->user_send(per_client, per_client->client_pcb);
@@ -73,7 +73,7 @@ static err_t tcp_server_poll(void *arg, struct tcp_pcb *tpcb) {
 
 static void tcp_server_err(void *arg, err_t err) {
     if (err != ERR_ABRT) {
-        DEBUG_printf("tcp_client_err_fn %d\n", err);
+        DEBUG_printf("tcp_server_err %d\n", err);
         tcp_server_result(arg, err);
     }
 }
