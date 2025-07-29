@@ -14,6 +14,9 @@
 #include "relay_control.h"
 #include "find_local_ssid.h"
 #include "picow_tcp.h"
+#include "cJSON.h"
+
+cJSON *mirror; // global containing system json
 
 void mdns_example_init(void);
 

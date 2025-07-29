@@ -71,9 +71,9 @@ err_t tcp_client_result(void *arg, err_t status) {
         DEBUG_printf("tcp_client_result failed %d\n", status);
     }
     err_t cls_err = tcp_client_close(arg);
-    state->user.busy = false;    //for pollers, set on open
-    if (state->user.completed_callback != NULL) {
-        state->user.completed_callback(arg, status);
+    state->busy = false;    //for pollers, set on open
+    if (state->completed_callback != NULL) {
+        state->completed_callback(arg, status);
     }
     return cls_err;
 }
@@ -110,8 +110,8 @@ static void client_request_common(void *arg) {
     }
     tcp_arg(state->tcp_pcb, state);
     tcp_poll(state->tcp_pcb, tcp_client_poll, POLL_TIME_S * 2);
-    tcp_sent(state->tcp_pcb, state->user.user_sent);
-    tcp_recv(state->tcp_pcb, state->user.user_recv);
+    tcp_sent(state->tcp_pcb, state->user_sent);
+    tcp_recv(state->tcp_pcb, state->user_recv);
     tcp_err(state->tcp_pcb, tcp_client_err);
 
     // cyw43_arch_lwip_begin/end should be used around calls into lwIP to ensure correct locking.
@@ -148,14 +148,18 @@ bool tcp_client_open(void *arg, const char *hostname, uint16_t port,
     TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
     state->port = port;
 
-    void *tpriv = state->user.priv; //users private data ptr
-    memset(&state->user, 0, sizeof(state->user)); //clear the user data
-    state->user.priv = tpriv;   //restore the users pointer
-    state->user.user_recv = recv;
-    state->user.user_sent = sent;
-    state->user.completed_callback = completed_callback;
-    state->user.buffer = buffer;
-    state->user.busy = true;
+    // void *tpriv = state->priv; //users private data ptr
+    // memset(&state->user, 0, sizeof(state->user)); //clear the user data
+    // state->priv = tpriv;   //restore the users pointer
+    state->user_recv = recv;
+    state->user_sent = sent;
+    state->completed_callback = completed_callback;
+    state->buffer = buffer;
+    state->status = 0; //last error return
+    state->count = 0;  //available to user code
+    state->recv_len = 0; //amount accumulated so far
+    state->sent_len = 0;   //amount sent so far
+    state->busy = true;
 
     // cyw43_arch_lwip_begin/end should be used around calls into lwIP to ensure correct locking.
     // You can omit them if you are in a callback from lwIP. Note that when using pico_cyw_arch_poll
@@ -182,7 +186,7 @@ TCP_CLIENT_T* tcp_client_init(void *priv) {
         DEBUG_printf("failed to allocate state\n");
         return NULL;
     }
-    state->user.priv = priv; //keep ptr to users data
+    state->priv = priv; //keep ptr to users data
     //ip4addr_aton(remote_addr, &state->remote_addr);
     // ip4_addr_copy(state->remote_addr, remote_addr);
     return state;
@@ -200,11 +204,11 @@ TCP_CLIENT_T* tcp_client_init(void *priv) {
  */
 static err_t tcp_client_sending(TCP_CLIENT_T *state, struct tcp_pcb *pcb) {
     // If we have received the whole buffer, send it back to the server
-    if (state->user.recv_len == BUF_SIZE) {
-        DEBUG_printf("tcp_client_sending %d bytes to server\n", state->user.recv_len);
-        err_t err = tcp_write(pcb, state->user.buffer, state->user.recv_len, TCP_WRITE_FLAG_COPY);
+    if (state->recv_len == BUF_SIZE) {
+        DEBUG_printf("tcp_client_sending %d bytes to server\n", state->recv_len);
+        err_t err = tcp_write(pcb, state->buffer, state->recv_len, TCP_WRITE_FLAG_COPY);
         if (err != ERR_OK) {
-            state->user.status = err;
+            state->status = err;
             DEBUG_printf("tcp_client_sending Failed to write data %d\n", err);
             if (err == ERR_MEM) {
                 return ERR_OK; //wait for memory, will be called again by poll
@@ -217,8 +221,8 @@ static err_t tcp_client_sending(TCP_CLIENT_T *state, struct tcp_pcb *pcb) {
 
 static err_t tcp_client_poll(void *arg, struct tcp_pcb *tpcb) {
     TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
-    DEBUG_printf("tcp_client_poll stat=%d\n", state->user.status);
-    if (state->user.status == ERR_MEM) {
+    DEBUG_printf("tcp_client_poll stat=%d\n", state->status);
+    if (state->status == ERR_MEM) {
         tcp_client_sending(state, tpcb); //retry send
     }
     return ERR_OK;
@@ -227,19 +231,19 @@ static err_t tcp_client_poll(void *arg, struct tcp_pcb *tpcb) {
 err_t tcp_client_sent(void *arg, struct tcp_pcb *tpcb, u16_t len) {
     TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
     DEBUG_printf("tcp_client_sent %u\n", len);
-    state->user.sent_len += len;
+    state->sent_len += len;
 
-    if (state->user.sent_len >= BUF_SIZE) {
+    if (state->sent_len >= BUF_SIZE) {
 
-        state->user.count++;
-        if (state->user.count >= TEST_ITERATIONS) {
+        state->count++;
+        if (state->count >= TEST_ITERATIONS) {
             tcp_client_result(arg, 0);
             return ERR_OK;
         }
 
         // We should receive a new buffer from the server
-        state->user.recv_len = 0;
-        state->user.sent_len = 0;
+        state->recv_len = 0;
+        state->sent_len = 0;
         DEBUG_printf("Waiting for buffer from server\n");
     }
 
@@ -261,8 +265,8 @@ err_t tcp_client_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err
             DUMP_BYTES(q->payload, q->len);
         }
         // Receive the buffer
-        const uint16_t buffer_left = BUF_SIZE - state->user.recv_len;
-        state->user.recv_len += pbuf_copy_partial(p, state->user.buffer + state->user.recv_len,
+        const uint16_t buffer_left = BUF_SIZE - state->recv_len;
+        state->recv_len += pbuf_copy_partial(p, state->buffer + state->recv_len,
                                                p->tot_len > buffer_left ? buffer_left : p->tot_len, 0);
         tcp_recved(tpcb, p->tot_len);
     }
@@ -281,11 +285,11 @@ bool tcp_client_sendtest_open(void *arg, const char *hostname, uint16_t port,
                             complete_callback completed_callback) {
     TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
     //fixme don't start unless I know the earlier call is complete.
-    if (state->user.busy) {
+    if (state->busy) {
         if (fail_count++ > 10) {
             //if something happened,
             printf("clear the busy flag to restart\n");
-            state->user.busy = false;
+            state->busy = false;
         } else {
             return false; //could not open, last operation is in progress
         }

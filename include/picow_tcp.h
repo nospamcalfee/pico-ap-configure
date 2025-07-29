@@ -21,24 +21,6 @@ typedef err_t (*tcp_send_fn)(void *arg, struct tcp_pcb *tpcb);
 // typedef void (*dns_found_client_callback)(void *state);
 typedef void (*complete_callback)(void *state, int status);
 
-struct user_header {
-    uint8_t *buffer;    //users buffer - he knows the length
-
-    // these have to be unique per client connection via accept.
-    err_t status; //last error return
-    int count;  //available to user code
-    int recv_len; //amount accumulated so far
-    int sent_len;   //amount sent so far
-    bool busy;      //false until completed is called
-
-    //these are for all connections on this protocol
-    complete_callback completed_callback;   // function to be called when entire user operation is complete */
-    tcp_sent_fn user_sent;  /* Function to be called when more send buffer space is available. */
-    tcp_recv_fn user_recv;  /* Function to be called when (in-sequence) data has arrived. */
-    tcp_send_fn user_send; //function to send on socket (server only)
-    void *priv; //for user tcp data and ptrs
-};
-
 struct TCP_SERVER_T_; //forward reference
 // data required after a client connects multiple simultaneous clients require
 // multiple of these structs limit to some max number to control memory use
@@ -72,7 +54,20 @@ typedef struct TCP_CLIENT_T_ {
     struct tcp_pcb *tcp_pcb;
     ip_addr_t remote_addr;
     uint16_t port;      //client only
-    struct user_header user;
+    //must be cleared on each open
+    err_t status; //last error return
+    int count;  //available to user code
+    int recv_len; //amount accumulated so far
+    int sent_len;   //amount sent so far
+    bool busy;      //false until completed is called
+
+    //these are for all connections on this protocol
+    complete_callback completed_callback;   // function to be called when entire user operation is complete */
+    tcp_sent_fn user_sent;  /* Function to be called when more send buffer space is available. */
+    tcp_recv_fn user_recv;  /* Function to be called when (in-sequence) data has arrived. */
+    tcp_send_fn user_send; //function to send on socket (server only)
+    uint8_t *buffer;    //users buffer - he knows the length
+    void *priv; //for user tcp data and ptrs
 } TCP_CLIENT_T;
 
 
