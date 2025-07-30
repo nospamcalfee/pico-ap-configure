@@ -77,10 +77,7 @@ static void tcp_server_err(void *arg, err_t err) {
         tcp_server_result(arg, err);
     }
 }
-/*
- * These functions are protocol specific clients, called from generic client routines
- * fixme - on each accept create a new state block, so multiple connections can work
- */
+
 static err_t tcp_server_accept(void *arg, struct tcp_pcb *client_pcb, err_t err) {
     TCP_SERVER_T *server_state = (TCP_SERVER_T*)arg;
     struct server_per_client *per_client = NULL;
@@ -172,6 +169,11 @@ err_t tcp_server_sent(void *arg, struct tcp_pcb *tpcb, u16_t len) {
     return ERR_OK;
 }
 
+/*
+ * These functions are protocol specific clients, called from generic client routines
+ *
+ * The following should be moved into a new file for server tests.
+ */
 
 //sample original userspace functions.
 static err_t tcp_server_send_data(void *arg, struct tcp_pcb *tpcb)

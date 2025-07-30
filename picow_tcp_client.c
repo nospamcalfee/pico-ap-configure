@@ -142,7 +142,9 @@ static void dns_found(const char *hostname, const ip_addr_t *ipaddr, void *arg) 
 
 bool tcp_client_open(void *arg, const char *hostname, uint16_t port,
                         uint8_t *buffer,
-                        tcp_recv_fn recv, tcp_sent_fn sent,
+                        tcp_recv_fn recv,
+                        tcp_sent_fn sent,
+                        tcp_sending_fn sending,
                         complete_callback completed_callback) {
     err_t err;
     TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
@@ -153,6 +155,7 @@ bool tcp_client_open(void *arg, const char *hostname, uint16_t port,
     // state->priv = tpriv;   //restore the users pointer
     state->user_recv = recv;
     state->user_sent = sent;
+    state->user_sending = sending;
     state->completed_callback = completed_callback;
     state->buffer = buffer;
     state->status = 0; //last error return
@@ -223,7 +226,7 @@ static err_t tcp_client_poll(void *arg, struct tcp_pcb *tpcb) {
     TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
     DEBUG_printf("tcp_client_poll stat=%d\n", state->status);
     if (state->status == ERR_MEM) {
-        tcp_client_sending(state, tpcb); //retry send
+        state->user_sending(state, tpcb); //retry send
     }
     return ERR_OK;
 }
@@ -272,7 +275,7 @@ err_t tcp_client_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err
     }
     pbuf_free(p);
 
-    return tcp_client_sending(state, tpcb);
+    return state->user_sending(state, tpcb);
 }
 
 /* every client protocol will have a custom open call.
@@ -295,6 +298,8 @@ bool tcp_client_sendtest_open(void *arg, const char *hostname, uint16_t port,
         }
     }
     return tcp_client_open(arg, hostname, port, buffer,
-                        tcp_client_recv, tcp_client_sent,
-                        completed_callback);
+                            tcp_client_recv,
+                            tcp_client_sent,
+                            tcp_client_sending,
+                            completed_callback);
 }

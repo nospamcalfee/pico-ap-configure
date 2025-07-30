@@ -18,6 +18,7 @@
 
 //user function to send data
 typedef err_t (*tcp_send_fn)(void *arg, struct tcp_pcb *tpcb);
+typedef err_t (*tcp_sending_fn)(void *arg, struct tcp_pcb *pcb);
 // typedef void (*dns_found_client_callback)(void *state);
 typedef void (*complete_callback)(void *state, int status);
 
@@ -65,6 +66,8 @@ typedef struct TCP_CLIENT_T_ {
     complete_callback completed_callback;   // function to be called when entire user operation is complete */
     tcp_sent_fn user_sent;  /* Function to be called when more send buffer space is available. */
     tcp_recv_fn user_recv;  /* Function to be called when (in-sequence) data has arrived. */
+//fixme are these redundant?
+    tcp_sending_fn user_sending; /* function to be called when more data is to be sent */
     tcp_send_fn user_send; //function to send on socket (server only)
     uint8_t *buffer;    //users buffer - he knows the length
     void *priv; //for user tcp data and ptrs
@@ -78,10 +81,13 @@ err_t tcp_server_open(TCP_SERVER_T *state, uint16_t port, tcp_recv_fn recv,
                         complete_callback complete);
 
 err_t tcp_server_sent(void *arg, struct tcp_pcb *tpcb, u16_t len);
+err_t tcp_server_result(struct server_per_client *per_client, int status);
 
 bool tcp_client_open(void *arg, const char *hostname, uint16_t port,
                         uint8_t *buffer,
-                        tcp_recv_fn recv, tcp_sent_fn sent,
+                        tcp_recv_fn recv,
+                        tcp_sent_fn sent,
+                        tcp_sending_fn sending,
                         complete_callback completed_callback);
 // void client_request_common(void *arg);
 err_t tcp_client_sent(void *arg, struct tcp_pcb *tpcb, u16_t len);
