@@ -44,7 +44,7 @@ static void dump_bytes(const uint8_t *bptr, uint32_t len) {
  */
 
 //sample original userspace functions.
-static err_t tcp_server_send_data(void *arg, struct tcp_pcb *tpcb)
+static err_t tcp_server_json_send(void *arg, struct tcp_pcb *tpcb)
 {
     struct server_per_client *per_client = (struct server_per_client *)arg;
     //fixme this could be moved to a separate function.
@@ -54,14 +54,14 @@ static err_t tcp_server_send_data(void *arg, struct tcp_pcb *tpcb)
     }
 
     per_client->sent_len = 0;
-    DEBUG_printf("tcp_server_send_data writing %ld\n", BUF_SIZE);
+    DEBUG_printf("tcp_server_json_send writing %ld\n", BUF_SIZE);
     // this method is callback from lwIP, so cyw43_arch_lwip_begin is not required, however you
     // can use this method to cause an assertion in debug mode, if this method is called when
     // cyw43_arch_lwip_begin IS needed
     cyw43_arch_lwip_check();
     err_t err = tcp_write(tpcb, per_client->buffer_sent, BUF_SIZE, TCP_WRITE_FLAG_COPY);
     if (err != ERR_OK) {
-        DEBUG_printf("tcp_server_send_data Failed to write data %d\n", err);
+        DEBUG_printf("tcp_server_json_send Failed to write data %d\n", err);
         per_client->status = err;
         if (err == ERR_MEM) {
             return ERR_OK; //wait for memory, will be called again by poll
@@ -71,9 +71,23 @@ static err_t tcp_server_send_data(void *arg, struct tcp_pcb *tpcb)
     }
     return ERR_OK;
 }
+static err_t tcp_json_server_sent(void *arg, struct tcp_pcb *tpcb, u16_t len) {
+    struct server_per_client *per_client = (struct server_per_client*) arg;
+    DEBUG_printf("tcp_json_server_sent %u\n", len);
+    per_client->sent_len += len;
+
+    if (per_client->sent_len >= BUF_SIZE) {
+
+        // We should get the data back from the client
+        per_client->recv_len = 0;
+        DEBUG_printf("tcp_json_server_sent Waiting for buffer\n");
+    }
+
+    return ERR_OK;
+}
 
 //another app specific routine
-static err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err) {
+static err_t tcp_server_json_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err) {
     struct server_per_client *per_client = (struct server_per_client *)arg;
     if ((err == ERR_OK || err == ERR_ABRT) && p == NULL) {
         // //remote client closed the connections, free up client stuff
@@ -88,7 +102,7 @@ static err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, er
         // cyw43_arch_lwip_begin IS needed
         cyw43_arch_lwip_check();
         if (p->tot_len > 0) {
-            DEBUG_printf("tcp_server_recv %d/%d err %d\n", p->tot_len, per_client->recv_len, err);
+            DEBUG_printf("tcp_server_json_recv %d/%d err %d\n", p->tot_len, per_client->recv_len, err);
 
             // Receive the buffer
             const uint16_t buffer_left = BUF_SIZE - per_client->recv_len;
@@ -106,7 +120,7 @@ static err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, er
             //     DEBUG_printf("buffer mismatch\n");
             //     return tcp_server_result(per_client, ERR_USER);
             // }
-            DEBUG_printf("tcp_server_recv buffer ok\n");
+            DEBUG_printf("tcp_server_json_recv buffer ok\n");
 
             // Test completed?
             per_client->count++;
@@ -114,7 +128,7 @@ static err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, er
             return ERR_OK;
         }
     } else {
-        DEBUG_printf("tcp_server_recv some funny error condition, still free the pbuf\n");
+        DEBUG_printf("tcp_server_json_recv some funny error condition, still free the pbuf\n");
         pbuf_free(p);
     }
     return ERR_OK;
@@ -209,7 +223,7 @@ err_t tcp_json_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err) 
 static uint8_t buffer[BUF_SIZE];
 static int fail_count;
 
-bool tcp_json_client_init_open(const char *hostname, uint16_t port,
+bool tcp_client_json_init_open(const char *hostname, uint16_t port,
                             complete_callback completed_callback) {
     TCP_CLIENT_T *state = tcp_client_init(NULL);
 
@@ -230,13 +244,14 @@ bool tcp_json_client_init_open(const char *hostname, uint16_t port,
                             completed_callback);
 }
 
-err_t tcp_service_json_init_open(uint16_t port,
+err_t tcp_server_json_init_open(uint16_t port,
                                complete_callback completed_callback) {
     TCP_SERVER_T *tcp_serv = tcp_server_init();
 
-    err_t err = tcp_server_open(tcp_serv, port, tcp_server_recv,
-                        tcp_server_sent,
-                        tcp_server_send_data,
+    err_t err = tcp_server_open(tcp_serv, port,
+                        tcp_server_json_recv,
+                        tcp_json_server_sent,
+                        tcp_server_json_send,
                         completed_callback);
     return err;
 }

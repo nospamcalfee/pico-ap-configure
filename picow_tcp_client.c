@@ -205,7 +205,8 @@ TCP_CLIENT_T* tcp_client_init(void *priv) {
  * ERR_MEM memory pressure. In that case, it will be retried by the
  * tcp_client_poll function.
  */
-static err_t tcp_client_sending(TCP_CLIENT_T *state, struct tcp_pcb *pcb) {
+static err_t tcp_client_sending(void *arg, struct tcp_pcb *pcb) {
+    TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
     // If we have received the whole buffer, send it back to the server
     if (state->recv_len == BUF_SIZE) {
         DEBUG_printf("tcp_client_sending %d bytes to server\n", state->recv_len);

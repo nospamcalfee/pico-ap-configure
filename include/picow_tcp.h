@@ -95,6 +95,8 @@ err_t tcp_client_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err
 err_t tcp_client_result(void *arg, err_t status);
 
 //per server defs
-err_t tcp_service_sendtest_init_open(uint16_t port,
+err_t tcp_server_sendtest_init_open(uint16_t port,
                                complete_callback completed_callback);
+bool tcp_client_sendtest_open(void *arg, const char *hostname, uint16_t port,
+                            complete_callback completed);
 #endif

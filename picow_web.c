@@ -260,15 +260,13 @@ int main() {
     cgi_init();
     printf("CGI Handler initialised\n");
     //start the control tcp server
-    err_t err_open = tcp_service_sendtest_init_open(4242, NULL);
+    err_t err_open = tcp_server_sendtest_init_open(4242, NULL);
     // Infinite loop
     while(1) {
         datetime_t t;
 
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
 
-        bool tcp_client_sendtest_open(void *arg, const char *hostname, uint16_t port,
-                            complete_callback completed);
         if (!tcp_client_sendtest_open(tcp_client, "jedediah.local", 4242, NULL)) {
             printf("client connection was busy, could not open\n");
         }

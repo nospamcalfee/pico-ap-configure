@@ -263,7 +263,7 @@ static err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, er
    fragmentation and stale pointers. Embedded wants predictable.
 */
 
-err_t tcp_service_sendtest_init_open(uint16_t port,
+err_t tcp_server_sendtest_init_open(uint16_t port,
                                complete_callback completed_callback) {
     TCP_SERVER_T *tcp_serv = tcp_server_init();
 
