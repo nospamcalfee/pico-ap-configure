@@ -16,8 +16,6 @@
 #include "picow_tcp.h"
 #include "cJSON.h"
 
-cJSON *mirror; // global containing system json
-
 void mdns_example_init(void);
 
 void set_host_name(const char *hostname) {

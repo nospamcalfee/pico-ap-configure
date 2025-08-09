@@ -43,6 +43,7 @@ add_executable(${PROGRAM_NAME}
         picow_tcp_client.c
         picow_tcp_json.c
         cJSON.c
+        json_handler.c
         )
 
 #target_compile_options(${PROGRAM_NAME} PUBLIC -Werror -Wall -Wextra -Wnull-dereference -Wno-unused-parameter -Wno-null-dereference -ggdb3 -O3)
