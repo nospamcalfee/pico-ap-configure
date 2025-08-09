@@ -44,6 +44,8 @@ add_executable(${PROGRAM_NAME}
         picow_tcp_json.c
         cJSON.c
         json_handler.c
+        dhcpserver/dhcpserver.c
+        #dnsserver/dnsserver.c
         )
 
 #target_compile_options(${PROGRAM_NAME} PUBLIC -Werror -Wall -Wextra -Wnull-dereference -Wno-unused-parameter -Wno-null-dereference -ggdb3 -O3)
@@ -59,6 +61,8 @@ pico_set_linker_script(${PROGRAM_NAME} ${CMAKE_SOURCE_DIR}/memmap_custom.ld)
 target_include_directories(${PROGRAM_NAME} PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}
         ${CMAKE_CURRENT_LIST_DIR}/.. # for our common lwipopts
+        ${CMAKE_CURRENT_LIST_DIR}/dhcpserver
+        #${CMAKE_CURRENT_LIST_DIR}/dnsserver
         ${CMAKE_CURRENT_LIST_DIR}/include
         )
 

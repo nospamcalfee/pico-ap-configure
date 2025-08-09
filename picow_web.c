@@ -15,6 +15,8 @@
 #include "find_local_ssid.h"
 #include "picow_tcp.h"
 #include "cJSON.h"
+#include "dhcpserver.h"
+// #include "dnsserver.h"
 
 void mdns_example_init(void);
 
@@ -90,6 +92,14 @@ void be_access_point(char *ap_name) {
     ip4_addr_t mask;
     IP4_ADDR(ip_2_ip4(&post_state->gw), 192, 168, 4, 1);
     IP4_ADDR(ip_2_ip4(&mask), 255, 255, 255, 0);
+
+   // Start the dhcp server both these are needed to be an AP
+    dhcp_server_t dhcp_server;
+    dhcp_server_init(&dhcp_server, &post_state->gw, &mask);
+    // // Start the dns server
+    // dns_server_t dns_server;
+    // dns_server_init(&dns_server, &post_state->gw);
+
 
     // wait until user sets a ssid/password
     //fixme needs to be pretty long for a user, but for test, short
