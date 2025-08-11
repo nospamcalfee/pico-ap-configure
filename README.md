@@ -72,38 +72,56 @@ From the code:
 
 ```
 
-When the application cannot connect to a known wifi, the pico-w starts up as
+When the picow cannot connect to a known wifi, the pico-w starts up as
 an access point so a cellphone or pc can join the pico-w network. Once this
 happens the user can use a browser to connect to the pico-w ap website at
-default 192.168.4.1 and then the user can set ssid/password and optionally
-fixed-ip and fixed-netmask.
+default http://192.168.4.1 and then the user can set your local wifi
+ssid/password.
 
-This is operationally difficult for most users who do this occasionally. So a
-long timeout of 3 minutes is allowed before the iot device retries to connect
-to any known wifi networks. This helps if a power failure resets both the iot
-device and an AP which may take a long time to boot up. So unattended iot
-devices will eventually connect to a slow AP.
+Typing long ap names and ap passwords can be operationally difficult for most
+users who do this occasionally. So a long timeout of 3 minutes is allowed
+before the iot device retries to connect to any known wifi networks. This
+helps if a power failure resets both the iot device and an AP which may take
+a long time to boot up. So unattended iot devices will eventually connect to
+a slow AP.
+
+### connecting to the pico ap
 
 First the connecting device (phone or pc) must connect to the temporary ap of
-the picow. In an IOT situation maybe several devices need to be configured,
+the picow. A unsetup picow will have a fast LED blink rate, about on/off in a
+second. One that has successfully connected to your lan due to an earlier
+setup will have a slow 1 second off then 9 second on flash rate. That is the
+entire UI. In an IOT situation maybe several devices need to be configured,
 so maybe to make this easier an unnamed device id named webapp_01_9a_bb where
-the funny numbers are the low 3 bytes of the built-in MAC address.
+the funny numbers are the low 3 bytes of the built-in MAC address. You can
+make a guess and connect to a random unnamed ap and then toggle its relay to
+see which one you are connected to.
 
-If you have already given the picow a name, it will appear in the wifi
-available list on your attaching device (instead of the example
-webapp_01_9a_bb). You can connect to this ap, but right now the dhcp server
-on the picow ap is not working, so you have to set the connecting device to a
-fixed ip in the range 192.168.4.2 to 192.168.4.250. Then you can hopefully
-connect with your browser to the picow ap which is running at ip 192.168.4.1.
-Then you can configure your picow to give it a name and the first wifi
-ssid/password you will try. Like most IT stuff this uses the most magic and
-luck at setting up. After doing it several times, maybe it will be clearer.
+If you have already given the picow a name, and it doesn't know a local AP
+ssid/password, the given name will appear in the wifi available list on your
+attaching device (instead of the example webapp_01_9a_bb). You can connect to
+this ap, The default network password is cleverly ```password```. When
+connected to the picow WIFI AP the picow dhcp server will give your
+connecting device(s) an ip in the range 192.168.4.2 to 192.168.4.250. Then
+you can hopefully connect with your browser to the picow ap which is running
+at http://192.168.4.1. Then you can configure your picow to give it a name
+and the first wifi ssid/password you will try. Like most IT stuff this uses
+the most magic and luck at setting up. After doing it several times, maybe it
+will be clearer.
 
-Second they must enter their local wifi name and sometimes complicated wifi
-passwords into the picow website either on the initial connection.
+Second as a user connected to the picow, go to the configure page labelled
+"Configure Wifi and Hostname". You must enter your local wifi name and
+sometimes complicated wifi passwords into the picow website on the
+configure page.
 
-Finally, the connecting device has to have a browser connected on this new
-network to 192.168.4.1
+If things are all messed up but you can still get to the configure page, you
+can select the "ERASE ALL CONFIG!" button and go back through the whole
+connection stuff again. You will lose all ap/password combos and your
+hostname after this. There is one even more desparate way to recover
+see "developer SNAFU" below. That will also require you to reload the picow
+firmware. Not a nice choice but sometimes maybe necessary.
+
+### notes on how the app works
 
 I took the gherlein app and made it standalone. Then expanded to include
 entering SSID and password. Then I added cgi POST processing which I needed
@@ -123,10 +141,10 @@ After the app starts it looks for active local wifi ssids, if a matching ssid
 exists in flash, that is used for a connect. After timeout it will start the
 access point (by default name ```webapp_xx_xx_xx``` where xx is a sort of
 random hex number). The default network password is cleverly ```password```.
-Your own local iot network name and password can be changed in the function
-be_access_point. After connecting to your ap, you can then access the html in
-a browser at 192.168.4.1 and set the actual wifi network credentials you have
-locally.
+Your own local iot network name and password can be changed in the
+picow_web.c function ```be_access_point```. After connecting to your ap, you
+can then access the html in a browser at 192.168.4.1 and set the actual wifi
+network credentials you have locally.
 
 I extended this example to include mdns (AKA bonjour or avahi). I was
 surprised to see a panic from lwip. Searching around the forums I see
