@@ -2,9 +2,7 @@
 #include "pico/cyw43_arch.h"
 #include "cJSON.h"
 #include <ssi.h>
-
-#define LATEST_VERSION "1.0"
-#define LATEST_JSON_VERSION "1.0"
+#include "json_handler.h"
 
 cJSON *mirror; // global containing system json
 
@@ -18,7 +16,7 @@ cJSON *get_mirror()
         mirror = cJSON_CreateObject();
         cJSON_AddItemToObject(mirror, "json_version",
                               cJSON_CreateString(LATEST_JSON_VERSION));
-        cJSON_AddItemToObject(mirror, "update_count", cJSON_CreateString("0"));
+        cJSON_AddNumberToObject(mirror, "update_count", 0);
         cJSON_AddItemToObject(mirror, "server_version",
                               cJSON_CreateString(LATEST_VERSION));
         // if (gethostname(name, sizeof(name))) {
@@ -32,7 +30,25 @@ cJSON *get_mirror()
         cJSON_AddItemToObject(mirror, "buddy_ip", cJSON_CreateString(name));
         cJSON_AddItemToObject(mirror, "well_delay", cJSON_CreateString("1"));
         cJSON_AddItemToObject(mirror, "skip_days", cJSON_CreateString("0"));
-        cJSON_AddItemToObject(mirror, "schedule", cJSON_CreateObject());
     }
     return mirror;
+}
+void inc_counter(cJSON *ptr) {
+    cJSON *counter = cJSON_GetObjectItem(ptr, "update_count");
+    if (counter != NULL && cJSON_IsNumber(counter)) {
+        int count = counter->valueint + 1;
+        cJSON_SetNumberValue(counter, count); //update in the json
+    }
+}
+
+void print_mirror(cJSON *ptr) {
+    char *json_string = cJSON_Print(ptr);
+    if (json_string == NULL) {
+        printf("Error printing cJSON object.\n");
+    } else {
+
+    printf("Generated JSON: %s\n", json_string);
+
+    free(json_string);
+    }
 }

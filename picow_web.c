@@ -17,6 +17,7 @@
 #include "cJSON.h"
 #include "dhcpserver.h"
 // #include "dnsserver.h"
+#include "json_handler.h"
 
 void mdns_example_init(void);
 
@@ -269,6 +270,7 @@ int main() {
     printf("CGI Handler initialised\n");
     //start the control tcp server
     err_t err_open = tcp_server_sendtest_init_open(4242, NULL);
+    get_mirror();
     // Infinite loop
     while(1) {
         datetime_t t;
@@ -281,6 +283,8 @@ int main() {
         sleep_ms(9000);
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
         sleep_ms(1000);
+        inc_counter(mirror);
+        print_mirror(mirror);
         rtc_get_datetime(&t);
         datetime_to_str(datetime_str, sizeof(datetime_str), &t);
 
