@@ -69,6 +69,7 @@ typedef struct TCP_CLIENT_T_ {
 //fixme are these redundant?
     tcp_sending_fn user_sending; /* function to be called when more data is to be sent */
     tcp_send_fn user_send; //function to send on socket (server only)
+    tcp_connected_fn client_connected_callback; //function to be called when connection is ready
     uint8_t *buffer;    //users buffer - he knows the length
     void *priv; //for user tcp data and ptrs
 } TCP_CLIENT_T;
@@ -88,8 +89,11 @@ bool tcp_client_open(void *arg, const char *hostname, uint16_t port,
                         tcp_recv_fn recv,
                         tcp_sent_fn sent,
                         tcp_sending_fn sending,
+                        tcp_connected_fn connected,
                         complete_callback completed_callback);
-// void client_request_common(void *arg);
+//to be used by anyone who lets the server initiate communications
+err_t tcp_client_connected(void *arg, struct tcp_pcb *tpcb, err_t err);
+
 err_t tcp_client_sent(void *arg, struct tcp_pcb *tpcb, u16_t len);
 err_t tcp_client_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err);
 err_t tcp_client_result(void *arg, err_t status);

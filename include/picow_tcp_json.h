@@ -14,24 +14,24 @@
  * Protocol: A binary header is prepended on json for application protocol control.
  *
  * A client will connect with a buddy whenever the client's website gets
- * updated.
+ * updated. The client will send his entire, fresh json.
  *
- * server sends On connection his entire json collection. The client will
- * examine its version info and if the server has fresher data accept that
- * data.
+ * The server will compare the received json version info and if the server
+ * has fresher data accept that data.
  *
- * Client responds with either a small header giving the server back his
- * version info. Or if the client has more recent data the Client will send
+ * The server responds with either a small header giving the client back his
+ * version info. Or if the server has more recent data the server will send
  * the entire, newer json collection.
  *
- * Server will again check the version info and if newer will use the Clients
- * data.
+ * THe client will check the server sent version info and if newer will use
+ * the server's data.
  *
  * At this point both Client and server will have identical json data with
- * identical versions. The client will iterate through the entire collection
- * of Buddies in the json to get everyone up to date. He will keep track of
- * the version known by each buddy so he will know when to stop sending. If a
- * server fails to respond the Client will retry after a long delay.
+ * identical versions. If the server did not have fresher info the client
+ * will iterate through the entire collection of Buddies in the json to get
+ * everyone up to date. The client will not send json data to a buddy twice.
+ * If a server fails to respond the Client will retry several times after a
+ * long delay.
  */
 
 /*
@@ -45,13 +45,23 @@
  * data_version is used to determine if a complete json transfer is required.
  * Higher values are newer than lower.
  */
+#define JSON_PROTOCOL_VERSION 1
+#define JSON_DATA_VERSION 1
+#define MAX_JSON_BUF_SIZE 2048
+
 struct tcp_json_header {
     uint16_t protocol_version;
     uint32_t size;
     uint32_t data_version;
 };
-bool tcp_client_json_init_open(const char *hostname, uint16_t port,
-                        complete_callback completed_callback);
+
+struct tcp_json_priv {
+    struct tcp_json_header proto_header;
+    uint32_t proto_xfer_size;
+};
+void tcp_client_json_dump_hdr(struct tcp_json_header *hdr);
+
+bool tcp_client_json_init_open(const char *hostname, uint16_t port);
 
 err_t tcp_server_json_init_open(uint16_t port,
                                complete_callback completed_callback);

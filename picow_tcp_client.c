@@ -78,7 +78,8 @@ err_t tcp_client_result(void *arg, err_t status) {
     return cls_err;
 }
 
-static err_t tcp_client_connected(void *arg, struct tcp_pcb *tpcb, err_t err) {
+//to be used by anyone who lets the server initiate communications
+err_t tcp_client_connected(void *arg, struct tcp_pcb *tpcb, err_t err) {
     TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
     if (err != ERR_OK) {
         printf("connect failed %d\n", err);
@@ -119,7 +120,7 @@ static void client_request_common(void *arg) {
     // these calls are a no-op and can be omitted, but it is a good practice to use them in
     // case you switch the cyw43_arch type later.
     cyw43_arch_lwip_begin();
-    err_t err = tcp_connect(state->tcp_pcb, &state->remote_addr, state->port, tcp_client_connected);
+    err_t err = tcp_connect(state->tcp_pcb, &state->remote_addr, state->port, state->client_connected_callback);
     cyw43_arch_lwip_end();
     printf("connect stat = %d\n", err);
 
@@ -145,6 +146,7 @@ bool tcp_client_open(void *arg, const char *hostname, uint16_t port,
                         tcp_recv_fn recv,
                         tcp_sent_fn sent,
                         tcp_sending_fn sending,
+                        tcp_connected_fn connected,
                         complete_callback completed_callback) {
     err_t err;
     TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
@@ -157,6 +159,7 @@ bool tcp_client_open(void *arg, const char *hostname, uint16_t port,
     state->user_sent = sent;
     state->user_sending = sending;
     state->completed_callback = completed_callback;
+    state->client_connected_callback = connected;
     state->buffer = buffer;
     state->status = 0; //last error return
     state->count = 0;  //available to user code
@@ -302,5 +305,6 @@ bool tcp_client_sendtest_open(void *arg, const char *hostname, uint16_t port,
                             tcp_client_recv,
                             tcp_client_sent,
                             tcp_client_sending,
+                            tcp_client_connected,
                             completed_callback);
 }
