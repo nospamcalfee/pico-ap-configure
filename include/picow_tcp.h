@@ -50,7 +50,8 @@ typedef struct TCP_SERVER_T_ {
     complete_callback completed_callback;   // function to be called when entire user operation is complete */
     tcp_sent_fn user_sent;  /* Function to be called when more send buffer space is available. */
     tcp_recv_fn user_recv;  /* Function to be called when (in-sequence) data has arrived. */
-    tcp_send_fn user_send; //function to send on socket (server only)
+    tcp_send_fn user_send; //function to send on socket
+    tcp_poll_fn user_poll; // function when send is delayed
     void *priv; //for user tcp data and ptrs
     struct server_per_client per_accept[MAX_CONNECTIONS];
 } TCP_SERVER_T;
@@ -72,7 +73,8 @@ typedef struct TCP_CLIENT_T_ {
     tcp_recv_fn user_recv;  /* Function to be called when (in-sequence) data has arrived. */
 //fixme are these redundant?
     tcp_sending_fn user_sending; /* function to be called when more data is to be sent */
-    tcp_send_fn user_send; //function to send on socket (server only)
+    tcp_send_fn user_send; //function to send on socket
+    tcp_poll_fn user_poll; // function when send is delayed
     tcp_connected_fn client_connected_callback; //function to be called when connection is ready
     uint8_t *buffer;    //users buffer - he knows the length
     void *priv; //for user tcp data and ptrs
@@ -93,6 +95,7 @@ bool tcp_client_open(void *arg, const char *hostname, uint16_t port,
                         tcp_recv_fn recv,
                         tcp_sent_fn sent,
                         tcp_sending_fn sending,
+                        tcp_poll_fn poll,
                         tcp_connected_fn connected,
                         complete_callback completed_callback);
 //to be used by anyone who lets the server initiate communications

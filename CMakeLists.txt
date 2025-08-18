@@ -45,7 +45,8 @@ add_executable(${PROGRAM_NAME}
         cJSON.c
         json_handler.c
         dhcpserver/dhcpserver.c
-        #dnsserver/dnsserver.c
+        tcp_client_test1.c
+        tcp_server_test1.c
         )
 
 #target_compile_options(${PROGRAM_NAME} PUBLIC -Werror -Wall -Wextra -Wnull-dereference -Wno-unused-parameter -Wno-null-dereference -ggdb3 -O3)

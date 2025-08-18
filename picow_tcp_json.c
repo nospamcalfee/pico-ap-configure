@@ -270,11 +270,11 @@ static void json_client_complete(void *arg, int status) {
 /* every client protocol will have a custom open call.
    The mainloop only knows to start it up, every so often.
 */
-uint8_t json_buffer[MAX_JSON_BUF_SIZE];
-static int fail_count;
-TCP_CLIENT_T *json_state; //need permanent storage, but not reentrant!
 
 bool tcp_client_json_init_open(const char *hostname, uint16_t port, struct tcp_json_header *mypriv) {
+    static uint8_t json_buffer[MAX_JSON_BUF_SIZE];
+    static int fail_count;
+    static TCP_CLIENT_T *json_state; //need permanent storage, but not reentrant!
     json_state = tcp_client_init(&mypriv);
 
     if (json_state->busy) {
@@ -292,6 +292,7 @@ bool tcp_client_json_init_open(const char *hostname, uint16_t port, struct tcp_j
                             tcp_client_json_recv,
                             tcp_client_json_sent,
                             tcp_client_json_sending,
+                            tcp_json_poll,
                             json_client_connected,
                             json_client_complete);
 }
