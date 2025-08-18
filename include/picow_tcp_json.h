@@ -6,12 +6,14 @@
 #define _PICO_TCP_JSON_H_
 
 #include "lwip/tcp.h"
+//for json server limit connections.
+#define MAX_CONNECTIONS 1
 #include "picow_tcp.h"
 
 /*
  * This is the C header for both client and server code for tossing around json.
  *
- * Protocol: A binary header is prepended on json for application protocol control.
+ * Protocol: A binary header is prepended on json for protocol control.
  *
  * A client will connect with a buddy whenever the client's website gets
  * updated. The client will send his entire, fresh json.
@@ -48,6 +50,7 @@
 #define JSON_PROTOCOL_VERSION 1
 #define JSON_DATA_VERSION 1
 #define MAX_JSON_BUF_SIZE 2048
+#define JSON_PORT 4243
 
 struct tcp_json_header {
     uint16_t protocol_version;
@@ -55,14 +58,15 @@ struct tcp_json_header {
     uint32_t data_version;
 };
 
-struct tcp_json_priv {
-    struct tcp_json_header proto_header;
-    uint32_t proto_xfer_size;
-};
+//user buffer
+extern uint8_t json_buffer[MAX_JSON_BUF_SIZE];
+
 void tcp_client_json_dump_hdr(struct tcp_json_header *hdr);
 
-bool tcp_client_json_init_open(const char *hostname, uint16_t port);
+bool tcp_client_json_init_open(const char *hostname, uint16_t port,
+                                struct tcp_json_header *mypriv);
 
 err_t tcp_server_json_init_open(uint16_t port,
-                               complete_callback completed_callback);
+                               complete_callback completed_callback,
+                               struct tcp_json_header *spriv);
 #endif

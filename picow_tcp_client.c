@@ -151,10 +151,6 @@ bool tcp_client_open(void *arg, const char *hostname, uint16_t port,
     err_t err;
     TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
     state->port = port;
-
-    // void *tpriv = state->priv; //users private data ptr
-    // memset(&state->user, 0, sizeof(state->user)); //clear the user data
-    // state->priv = tpriv;   //restore the users pointer
     state->user_recv = recv;
     state->user_sent = sent;
     state->user_sending = sending;
@@ -193,8 +189,6 @@ TCP_CLIENT_T* tcp_client_init(void *priv) {
         return NULL;
     }
     state->priv = priv; //keep ptr to users data
-    //ip4addr_aton(remote_addr, &state->remote_addr);
-    // ip4_addr_copy(state->remote_addr, remote_addr);
     return state;
 }
 

@@ -3,6 +3,7 @@
 #include "cJSON.h"
 #include <ssi.h>
 #include "json_handler.h"
+#include "picow_tcp_json.h"
 
 cJSON *mirror; // global containing system json
 
@@ -51,4 +52,37 @@ void print_mirror(cJSON *ptr) {
 
     free(json_string);
     }
+}
+
+bool tcp_client_json_update_buddy(const char *hostname)
+{
+    cJSON *mptr = get_mirror();
+    if (mptr == NULL) {
+        return false; //mirror problem, about update
+    }
+    struct tcp_json_header *hptr = (struct tcp_json_header *)json_buffer;
+    uint8_t *jptr = json_buffer + sizeof(*hptr);
+
+    // json string follows an allocation for the binary header
+    bool jready = cJSON_PrintPreallocated(mptr,
+            jptr,
+            sizeof(json_buffer) - 5 - sizeof(*hptr), /* max size */
+            0);
+    if (jready) {
+        int jlength = strlen(jptr);
+        int count;
+        //now update binary header
+        hptr->protocol_version = JSON_PROTOCOL_VERSION;
+        hptr->size = jlength + sizeof(*hptr); //header size plus json
+        cJSON *counter = cJSON_GetObjectItem(mptr, "update_count");
+        if (counter != NULL && cJSON_IsNumber(counter)) {
+            count = counter->valueint;
+        } else {
+            count = JSON_DATA_VERSION; //default value
+        }
+
+        hptr->data_version = count;
+        jready = tcp_client_json_init_open(hostname, JSON_PORT, hptr);
+    }
+    return jready; //let caller know if it started.
 }

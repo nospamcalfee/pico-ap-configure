@@ -18,12 +18,13 @@
 #define TEST_ITERATIONS 10
 #define POLL_TIME_S 5
 
-TCP_SERVER_T* tcp_server_init(void) {
+TCP_SERVER_T* tcp_server_init(void *priv) {
     TCP_SERVER_T *state = calloc(1, sizeof(TCP_SERVER_T));
     if (!state) {
         DEBUG_printf("failed to allocate state\n");
         return NULL;
     }
+    state->priv = priv; //keep ptr to users data
     return state;
 }
 // I want the server to stay alive and accepting.
@@ -87,8 +88,7 @@ static err_t tcp_server_accept(void *arg, struct tcp_pcb *client_pcb, err_t err)
         return ERR_VAL;
     }
     //find a free slot for this connection
-    int i;
-    for (i = 0; i < MAX_CONNECTIONS; i++) {
+    for (int i = 0; i < MAX_CONNECTIONS; i++) {
         if (server_state->per_accept[i].client_pcb == NULL) {
             per_client = &server_state->per_accept[i];
             break;
@@ -265,7 +265,7 @@ static err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, er
 
 err_t tcp_server_sendtest_init_open(uint16_t port,
                                complete_callback completed_callback) {
-    TCP_SERVER_T *tcp_serv = tcp_server_init();
+    TCP_SERVER_T *tcp_serv = tcp_server_init(NULL);
 
     err_t err = tcp_server_open(tcp_serv, port, tcp_server_recv,
                         tcp_server_sent, tcp_server_send_data,

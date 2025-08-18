@@ -14,8 +14,8 @@
 #include "lwip/tcp.h"
 #include "lwip/dns.h"
 
-#include "picow_tcp.h"
 #include "picow_tcp_json.h"
+#include "picow_tcp.h"
 
 #if 0
 static void dump_bytes(const uint8_t *bptr, uint32_t len) {
@@ -52,19 +52,14 @@ static err_t tcp_server_json_send(void *arg, struct tcp_pcb *tpcb)
 {
     struct server_per_client *per_client = (struct server_per_client *)arg;
     // struct tcp_json_priv *json_priv = per_client->priv;
-    //fixme this could be moved to a separate function.
-    //fixme as now, it rebuilds the buffer on send retries
-    // for(int i=0; i < BUF_SIZE; i++) {
-    //     per_client->buffer_sent[i] = rand();
-    // }
 
     per_client->sent_len = 0;
-    DEBUG_printf("tcp_server_json_send writing %ld\n", /*json_priv->proto_xfer_size*/ BUF_SIZE);
+    DEBUG_printf("tcp_server_json_send writing %ld\n", /*json_priv->size*/ BUF_SIZE);
     // this method is callback from lwIP, so cyw43_arch_lwip_begin is not required, however you
     // can use this method to cause an assertion in debug mode, if this method is called when
     // cyw43_arch_lwip_begin IS needed
     cyw43_arch_lwip_check();
-    err_t err = tcp_write(tpcb, per_client->buffer_sent, /*json_priv->proto_xfer_size*/ BUF_SIZE, TCP_WRITE_FLAG_COPY);
+    err_t err = tcp_write(tpcb, per_client->buffer_sent, /*json_priv->size*/ BUF_SIZE, TCP_WRITE_FLAG_COPY);
     if (err != ERR_OK) {
         DEBUG_printf("tcp_server_json_send Failed to write data %d\n", err);
         per_client->status = err;
@@ -92,6 +87,12 @@ static err_t tcp_server_json_sent(void *arg, struct tcp_pcb *tpcb, u16_t len) {
 }
 
 //another app specific routine
+/*
+ * After client sends his json, the server will return his version info
+ * followed (if the version is higher than the sending client) by the server
+ * json. If the server is behind or the same as the client he will update his
+ * json and return just the binary version info.
+ */
 static err_t tcp_server_json_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err) {
     struct server_per_client *per_client = (struct server_per_client *)arg;
     if ((err == ERR_OK || err == ERR_ABRT) && p == NULL) {
@@ -110,18 +111,19 @@ static err_t tcp_server_json_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *
             DEBUG_printf("tcp_server_json_recv %d/%d err %d\n", p->tot_len, per_client->recv_len, err);
 
             // Receive the buffer
-            const uint16_t buffer_left = BUF_SIZE - per_client->recv_len;
-            per_client->recv_len += pbuf_copy_partial(p, per_client->buffer_recv + per_client->recv_len,
+            const uint16_t buffer_left = MAX_JSON_BUF_SIZE - per_client->recv_len;
+            int this_len = pbuf_copy_partial(p, per_client->buffer_recv + per_client->recv_len,
                                                  p->tot_len > buffer_left ? buffer_left : p->tot_len, 0);
+            per_client->recv_len += this_len;
             tcp_recved(tpcb, p->tot_len);
         }
         pbuf_free(p);
 
         // Have we have received the whole buffer
-        if (per_client->recv_len == BUF_SIZE) {
+        if (per_client->recv_len == MAX_JSON_BUF_SIZE) {
 
             // // check it matches
-            // if (memcmp(per_client->buffer_sent, per_client->buffer_recv, BUF_SIZE) != 0) {
+            // if (memcmp(per_client->buffer_sent, per_client->buffer_recv, MAX_JSON_BUF_SIZE) != 0) {
             //     DEBUG_printf("buffer mismatch\n");
             //     return tcp_server_result(per_client, ERR_USER);
             // }
@@ -155,20 +157,20 @@ static err_t tcp_server_json_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *
  */
 static err_t tcp_client_json_sending(void *arg, struct tcp_pcb *pcb) {
     TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
-    struct tcp_json_priv *json_priv = state->priv;
+    struct tcp_json_header *json_priv = state->priv;
     //fixme first I send data, then receive it. below is wrong
-    // If we have received the whole buffer, send it back to the server
-    if (state->recv_len == json_priv->proto_xfer_size) {
-        DEBUG_printf("tcp_client_json_sending %d bytes to server\n", state->recv_len);
-        tcp_client_json_dump_hdr(&json_priv->proto_header);
-        err_t err = tcp_write(pcb, state->buffer, state->recv_len, TCP_WRITE_FLAG_COPY);
+    if (state->sent_len <= json_priv->size) {
+        DEBUG_printf("tcp_client_json_sending %d bytes to server\n",
+                     json_priv->size);
+        tcp_client_json_dump_hdr(json_priv);
+        err_t err = tcp_write(pcb, state->buffer, json_priv->size, TCP_WRITE_FLAG_COPY);
         if (err != ERR_OK) {
             state->status = err;
             DEBUG_printf("tcp_client_json_sending Failed to write data %d\n", err);
             if (err == ERR_MEM) {
                 return ERR_OK; //wait for memory, will be called again by poll
             }
-            return tcp_client_result(state, err);
+            return tcp_client_result(state, err); //some write failure, abort
         }
     }
     return ERR_OK;
@@ -185,25 +187,27 @@ static err_t tcp_json_poll(void *arg, struct tcp_pcb *tpcb) {
 
 err_t tcp_client_json_sent(void *arg, struct tcp_pcb *tpcb, u16_t len) {
     TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
-    struct tcp_json_priv *json_priv = state->priv;
+    struct tcp_json_header *json_priv = state->priv;
     DEBUG_printf("tcp_client_json_sent %u\n", len);
     state->sent_len += len;
 
-    if (state->sent_len >= json_priv->proto_xfer_size) {
+    if (state->sent_len >= json_priv->size) {
 
         state->count++;
         // We should receive a new buffer from the server
         state->recv_len = 0;
         state->sent_len = 0;
-        tcp_client_result(arg, 0);
+        DEBUG_printf("Waiting for json from server\n");
     }
 
     return ERR_OK;
 }
-
+/*
+ * Here the amount to recieve is in the header from the server
+ */
 err_t tcp_client_json_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err) {
     TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
-    struct tcp_json_priv *json_priv = state->priv;
+    struct tcp_json_header *json_priv = state->priv;
     if (!p) {
         return tcp_client_result(arg, ERR_USER);
     }
@@ -213,18 +217,29 @@ err_t tcp_client_json_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_
     cyw43_arch_lwip_check();
     if (p->tot_len > 0) {
         DEBUG_printf("tcp_client_json_recv %d err %d\n", p->tot_len, err);
-        for (struct pbuf *q = p; q != NULL; q = q->next) {
-            DUMP_BYTES(q->payload, q->len);
-        }
         // Receive the buffer
-        const uint16_t buffer_left = json_priv->proto_xfer_size - state->recv_len;
-        state->recv_len += pbuf_copy_partial(p, state->buffer + state->recv_len,
-                                               p->tot_len > buffer_left ? buffer_left : p->tot_len, 0);
+        const uint16_t buffer_left = json_priv->size - state->recv_len;
+        int this_len = pbuf_copy_partial(p, state->buffer + state->recv_len,
+                   p->tot_len > buffer_left ? buffer_left : p->tot_len, 0);
+        //on the first chunk, verify the  protocol, extract total size expected.
+        //assumes entire header 10 bytes will be in the first receive
+        if (state->recv_len == 0 && this_len >= sizeof(*json_priv)) {
+            struct tcp_json_header *buf_priv = ( struct tcp_json_header *)state->buffer;
+            //replace private expected size with server sent size
+            json_priv->size = buf_priv->size;
+            DEBUG_printf("tcp_client_json_recv data len=%d expected=%d\n",
+                        this_len, json_priv->size);
+        }
+        state->recv_len += this_len;
         tcp_recved(tpcb, p->tot_len);
     }
     pbuf_free(p);
 
-    return state->user_sending(state, tpcb);
+    if (state->recv_len >= json_priv->size) {
+        return tcp_client_result(arg, ERR_OK);
+    }
+
+    return ERR_OK;
 }
 //if I want client to start protocol, modify the connected routine here.
 static err_t json_client_connected(void *arg, struct tcp_pcb *tpcb, err_t err) {
@@ -234,6 +249,8 @@ static err_t json_client_connected(void *arg, struct tcp_pcb *tpcb, err_t err) {
         return tcp_client_result(arg, err);
     }
     DEBUG_printf("tcp_client_connected initiate sending to server\n");
+    state->recv_len = 0; //init state variables
+    state->sent_len = 0;
     return state->user_sending(state, tpcb);
 }
 
@@ -253,17 +270,11 @@ static void json_client_complete(void *arg, int status) {
 /* every client protocol will have a custom open call.
    The mainloop only knows to start it up, every so often.
 */
-static uint8_t buffer[MAX_JSON_BUF_SIZE];
+uint8_t json_buffer[MAX_JSON_BUF_SIZE];
 static int fail_count;
 TCP_CLIENT_T *json_state; //need permanent storage, but not reentrant!
-struct tcp_json_priv mypriv;
 
-bool tcp_client_json_init_open(const char *hostname, uint16_t port) {
-
-    mypriv.proto_header.protocol_version = JSON_PROTOCOL_VERSION;
-    mypriv.proto_header.size = 0; //fixme init to header size plus json
-    mypriv.proto_header.data_version = JSON_DATA_VERSION;
-    mypriv.proto_xfer_size = 100; //fixme init to header size plus json or just header size
+bool tcp_client_json_init_open(const char *hostname, uint16_t port, struct tcp_json_header *mypriv) {
     json_state = tcp_client_init(&mypriv);
 
     if (json_state->busy) {
@@ -275,8 +286,9 @@ bool tcp_client_json_init_open(const char *hostname, uint16_t port) {
             return false; //could not open, last operation is in progress
         }
     }
+    fail_count = 0; //reset working counter
     return tcp_client_open(json_state, hostname, port,
-                            buffer,
+                            json_buffer,
                             tcp_client_json_recv,
                             tcp_client_json_sent,
                             tcp_client_json_sending,
@@ -285,8 +297,9 @@ bool tcp_client_json_init_open(const char *hostname, uint16_t port) {
 }
 
 err_t tcp_server_json_init_open(uint16_t port,
-                               complete_callback completed_callback) {
-    TCP_SERVER_T *tcp_serv = tcp_server_init();
+                               complete_callback completed_callback,
+                               struct tcp_json_header *spriv) {
+    TCP_SERVER_T *tcp_serv = tcp_server_init(spriv);
 
     err_t err = tcp_server_open(tcp_serv, port,
                         tcp_server_json_recv,
