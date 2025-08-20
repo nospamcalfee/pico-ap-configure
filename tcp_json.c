@@ -14,7 +14,7 @@
 #include "lwip/tcp.h"
 #include "lwip/dns.h"
 
-#include "picow_tcp_json.h"
+#include "tcp_json.h"
 #include "picow_tcp.h"
 
 #if 0

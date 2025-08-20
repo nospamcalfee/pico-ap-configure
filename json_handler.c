@@ -3,7 +3,7 @@
 #include "cJSON.h"
 #include <ssi.h>
 #include "json_handler.h"
-#include "picow_tcp_json.h"
+#include "tcp_json.h"
 
 cJSON *mirror; // global containing system json
 

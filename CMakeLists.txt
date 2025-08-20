@@ -41,7 +41,7 @@ add_executable(${PROGRAM_NAME}
         cdll.c
         picow_tcp_server.c
         picow_tcp_client.c
-        picow_tcp_json.c
+        tcp_json.c
         cJSON.c
         json_handler.c
         dhcpserver/dhcpserver.c
