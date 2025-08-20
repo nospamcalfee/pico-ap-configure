@@ -154,17 +154,3 @@ err_t tcp_server_open(TCP_SERVER_T *state, uint16_t port, tcp_recv_fn recv,
     return ERR_OK;
 }
 
-err_t tcp_server_sent(void *arg, struct tcp_pcb *tpcb, u16_t len) {
-    struct server_per_client *per_client = (struct server_per_client*) arg;
-    DEBUG_printf("tcp_server_sent %u\n", len);
-    per_client->sent_len += len;
-
-    if (per_client->sent_len >= BUF_SIZE) {
-
-        // We should get the data back from the client
-        per_client->recv_len = 0;
-        DEBUG_printf("tcp_server_sent Waiting for buffer\n");
-    }
-
-    return ERR_OK;
-}

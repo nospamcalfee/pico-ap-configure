@@ -87,7 +87,6 @@ err_t tcp_server_open(TCP_SERVER_T *state, uint16_t port, tcp_recv_fn recv,
                         tcp_sent_fn sent, tcp_send_fn user_send,
                         complete_callback complete);
 
-err_t tcp_server_sent(void *arg, struct tcp_pcb *tpcb, u16_t len);
 err_t tcp_server_result(struct server_per_client *per_client, int status);
 
 bool tcp_client_open(void *arg, const char *hostname, uint16_t port,
@@ -101,13 +100,12 @@ bool tcp_client_open(void *arg, const char *hostname, uint16_t port,
 //to be used by anyone who lets the server initiate communications
 err_t tcp_client_connected(void *arg, struct tcp_pcb *tpcb, err_t err);
 
-err_t tcp_client_sent(void *arg, struct tcp_pcb *tpcb, u16_t len);
-err_t tcp_client_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err);
 err_t tcp_client_result(void *arg, err_t status);
 
 //per server defs
 err_t tcp_server_sendtest_init_open(uint16_t port,
                                complete_callback completed_callback);
-bool tcp_client_sendtest_open(void *arg, const char *hostname, uint16_t port,
-                            complete_callback completed);
+err_t tcp_client_sendtest_init_open(char *hostname, uint16_t port,
+                                    void *spriv);
+
 #endif

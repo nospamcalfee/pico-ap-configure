@@ -199,7 +199,6 @@ int main() {
 
     struct my_scan_result *likelyAP = NULL;
     httpd_init();
-    struct TCP_CLIENT_T_ *tcp_client = tcp_client_init(NULL);
     int connected = 0; //outer loop exit flag when non-zeroS
     do {
         // outer loop, check all available local ssids on the air
@@ -277,7 +276,7 @@ int main() {
 
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
 
-        if (!tcp_client_sendtest_open(tcp_client, "jedediah.local", 4242, NULL)) {
+        if (!tcp_client_sendtest_init_open("jedediah.local", 4242, NULL)) {
             printf("client connection was busy, could not open\n");
         }
         sleep_ms(9000);
