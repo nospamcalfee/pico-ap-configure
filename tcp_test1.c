@@ -26,6 +26,21 @@
  */
 
 //sample original userspace functions.
+// local adjustments after the server accepts. If protocol demands, start a send.
+static err_t tcp_server_test1_accept(void *arg, struct tcp_pcb *tpcb)
+{
+    (void)tpcb; //ignore arg
+#if 1
+    //example code where server sends on connect
+    struct server_per_client *per_client = (struct server_per_client *)arg;
+    // app specific send on connnect
+    return per_client->parent->user_send(per_client, per_client->client_pcb);
+#else
+    (void)arg; //ignore arg
+    return ERR_OK;
+#endif
+}
+
 static err_t tcp_server_send_data(void *arg, struct tcp_pcb *tpcb)
 {
     struct server_per_client *per_client = (struct server_per_client *)arg;
@@ -132,9 +147,12 @@ err_t tcp_server_sendtest_init_open(uint16_t port,
                                complete_callback completed_callback) {
     TCP_SERVER_T *tcp_serv = tcp_server_init(NULL);
 
-    err_t err = tcp_server_open(tcp_serv, port, tcp_server_recv,
-                        tcp_server_sent, tcp_server_send_data,
-                        completed_callback);
+    err_t err = tcp_server_open(tcp_serv, port,
+                                tcp_server_recv,
+                                tcp_server_sent,
+                                tcp_server_send_data,
+                                tcp_server_test1_accept,
+                                completed_callback);
     return err;
 }
 

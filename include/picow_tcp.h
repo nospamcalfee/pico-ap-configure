@@ -33,6 +33,9 @@ struct server_per_client {
     uint8_t buffer_recv[BUF_SIZE];
 
     err_t status; //last error return
+    int recv_size;  //size expected from user info
+    int recv_flag;  //flag when header data has been processed
+    int send_size;  //amount to send
     int count;  //available to user code
     int recv_len; //amount accumulated so far
     int sent_len;   //amount sent so far
@@ -52,6 +55,7 @@ typedef struct TCP_SERVER_T_ {
     tcp_recv_fn user_recv;  /* Function to be called when (in-sequence) data has arrived. */
     tcp_send_fn user_send; //function to send on socket
     tcp_poll_fn user_poll; // function when send is delayed
+    tcp_send_fn user_accept;    //function called when new client is accepted
     void *priv; //for user tcp data and ptrs
     struct server_per_client per_accept[MAX_CONNECTIONS];
 } TCP_SERVER_T;
@@ -84,7 +88,9 @@ typedef struct TCP_CLIENT_T_ {
 TCP_SERVER_T* tcp_server_init(void *priv);
 TCP_CLIENT_T* tcp_client_init(void *priv);
 err_t tcp_server_open(TCP_SERVER_T *state, uint16_t port, tcp_recv_fn recv,
-                        tcp_sent_fn sent, tcp_send_fn user_send,
+                        tcp_sent_fn sent,
+                        tcp_send_fn user_send,
+                        tcp_send_fn user_accept,
                         complete_callback complete);
 
 err_t tcp_server_result(struct server_per_client *per_client, int status);

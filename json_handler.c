@@ -54,7 +54,7 @@ void print_mirror(cJSON *ptr) {
     }
 }
 
-bool tcp_client_json_update_buddy(const char *hostname)
+static int json_get_counter_value()
 {
     cJSON *mptr = get_mirror();
     if (mptr == NULL) {
@@ -82,7 +82,61 @@ bool tcp_client_json_update_buddy(const char *hostname)
         }
 
         hptr->data_version = count;
-        jready = tcp_client_json_init_open(hostname, JSON_PORT, hptr);
+        printf("data version: %d\n", count);
+
+        return count;   //return some non-zero version of my json
     }
     return jready; //let caller know if it started.
+}
+bool tcp_client_json_update_buddy(const char *hostname)
+{
+    bool jready = 0;
+    if(json_get_counter_value() > 0) {
+        struct tcp_json_header *hptr = (struct tcp_json_header *)json_buffer;
+        jready = tcp_client_json_init_open(hostname, JSON_PORT, hptr);
+    }
+    return jready;
+}
+// when we have a new buffer, if it is "fresher" update the local json
+void tcp_client_json_handle_reply(int size, uint8_t *buffer) {
+    struct tcp_json_header *hptr = (struct tcp_json_header *)buffer;
+    if (size <= sizeof(*hptr)) {
+        return; //server agrees my data is freshest;
+    }
+    int my_counter = json_get_counter_value();
+
+    if (my_counter == 0){
+        return;  //this a cjson error exit
+    }
+    if (my_counter <= hptr->data_version) {
+        // I am out of date, use servers version of json.
+        printf("client data version: %d his version %d\n", my_counter, hptr->data_version);
+        cJSON *localmirror = get_mirror();
+        localmirror = cJSON_Parse((const char *)hptr + sizeof(*hptr)); //skip header
+        if (localmirror == NULL) {
+            printf("tcp_client_json_handle_reply could not parse servers json\n");
+        }
+        hptr->size = sizeof(*hptr);
+    }
+
+}
+//return number of bytes to send to client. 0 if there is some total error and
+//an abort should be used.
+
+//If the local json has a higher version counter, send header and json
+//otherwise just send the header.
+int tcp_server_json_check_freshness(int ver_counter) {
+    struct tcp_json_header *hptr = (struct tcp_json_header *)json_buffer;
+    //json_get_counter_value inits the header to send everything, hdr and json
+    int my_counter = json_get_counter_value();
+
+    if (my_counter == 0){
+        return my_counter;  //this a cjson error exit
+    }
+    if (my_counter <= ver_counter) {
+        //I need to send to the client just the header, not json data
+        printf("my data version: %d his version %d I accept client\n", my_counter, ver_counter);
+        hptr->size = sizeof(*hptr);
+    }
+    return hptr->size;
 }

@@ -99,7 +99,6 @@ static err_t tcp_server_accept(void *arg, struct tcp_pcb *client_pcb, err_t err)
         err_t err = tcp_close(client_pcb);
         if (err != ERR_OK) {
             DEBUG_printf("close failed %d, calling abort\n", err);
-            // tcp_abort(state->client_pcb); //fixme what here?
         }
         return ERR_MEM; //fail the accept
     }
@@ -116,11 +115,14 @@ static err_t tcp_server_accept(void *arg, struct tcp_pcb *client_pcb, err_t err)
     per_client->count = 0; //new user test count
 
     // app specific send on connnect
-    return server_state->user_send(per_client, per_client->client_pcb);
+    return server_state->user_accept(per_client, per_client->client_pcb);
 }
 
-err_t tcp_server_open(TCP_SERVER_T *state, uint16_t port, tcp_recv_fn recv,
-                        tcp_sent_fn sent, tcp_send_fn user_send,
+err_t tcp_server_open(TCP_SERVER_T *state, uint16_t port,
+                        tcp_recv_fn recv,
+                        tcp_sent_fn sent,
+                        tcp_send_fn user_send,
+                        tcp_send_fn user_accept,
                         complete_callback complete) {
     DEBUG_printf("Starting server at %s on port %u\n", ip4addr_ntoa(netif_ip4_addr(netif_list)), port);
 
@@ -132,6 +134,7 @@ err_t tcp_server_open(TCP_SERVER_T *state, uint16_t port, tcp_recv_fn recv,
     state->user_recv = recv;
     state->user_send = user_send;
     state->user_sent = sent;
+    state->user_accept = user_accept;
     state->completed_callback = complete;
 
     err_t err = tcp_bind(pcb, NULL, port);
