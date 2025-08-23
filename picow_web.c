@@ -269,7 +269,7 @@ int main() {
     printf("CGI Handler initialised\n");
     //start the control tcp server
     err_t err_open = tcp_server_sendtest_init_open(4242, NULL);
-    get_mirror();
+    mirror = get_mirror();
     // Infinite loop
     while(1) {
         datetime_t t;

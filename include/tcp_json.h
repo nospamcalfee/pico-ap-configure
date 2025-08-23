@@ -7,7 +7,7 @@
 
 #include "lwip/tcp.h"
 //for json server limit connections.
-#define MAX_CONNECTIONS 1
+#define MAX_JSON_CONNECTIONS 1
 #include "picow_tcp.h"
 
 /*

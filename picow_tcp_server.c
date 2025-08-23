@@ -18,13 +18,22 @@
 #define TEST_ITERATIONS 10
 #define POLL_TIME_S 5
 
-TCP_SERVER_T* tcp_server_init(void *priv) {
+TCP_SERVER_T* tcp_server_init(void *priv, int max_connections) {
     TCP_SERVER_T *state = calloc(1, sizeof(TCP_SERVER_T));
-    if (!state) {
-        DEBUG_printf("failed to allocate state\n");
+    if (!state || max_connections < 1) {
+        DEBUG_printf("tcp_server_init failed to allocate state\n");
         return NULL;
     }
     state->priv = priv; //keep ptr to users data
+    state->max_connections = max_connections;
+    //intended never to be freed, free fragments memory
+    state->per_accept = calloc(1, PER_SERVER_ALIGNED_SIZE * max_connections);
+    if (state->per_accept == NULL) {
+        DEBUG_printf("tcp_server_init failed to allocate per_accept\n");
+        free(state);
+        return NULL;
+
+    }
     return state;
 }
 // I want the server to stay alive and accepting.
@@ -88,9 +97,12 @@ static err_t tcp_server_accept(void *arg, struct tcp_pcb *client_pcb, err_t err)
         return ERR_VAL;
     }
     //find a free slot for this connection
-    for (int i = 0; i < MAX_CONNECTIONS; i++) {
-        if (server_state->per_accept[i].client_pcb == NULL) {
-            per_client = &server_state->per_accept[i];
+    for (int i = 0; i < server_state->max_connections; i++) {
+        struct server_per_client *per_acc;
+        // per_acc = (struct server_per_client *)((char *)server_state->per_accept + (i * PER_SERVER_ALIGNED_SIZE));
+        per_acc = server_state->per_accept + i;//point to next client slot
+        if (per_acc->client_pcb == NULL) {
+            per_client = per_acc;
             break;
         }
     }

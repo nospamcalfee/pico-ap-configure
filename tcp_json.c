@@ -59,7 +59,7 @@ static err_t tcp_server_json_send(void *arg, struct tcp_pcb *tpcb)
     // struct tcp_json_priv *json_priv = per_client->priv;
 
     per_client->sent_len = 0;
-    DEBUG_printf("tcp_server_json_send writing %ld\n", /*json_priv->size*/ BUF_SIZE);
+    DEBUG_printf("tcp_server_json_send writing %ld\n", per_client->send_size);
     // this method is callback from lwIP, so cyw43_arch_lwip_begin is not required, however you
     // can use this method to cause an assertion in debug mode, if this method is called when
     // cyw43_arch_lwip_begin IS needed
@@ -334,7 +334,7 @@ bool tcp_client_json_init_open(const char *hostname, uint16_t port, struct tcp_j
 err_t tcp_server_json_init_open(uint16_t port,
                                complete_callback completed_callback,
                                struct tcp_json_header *spriv) {
-    TCP_SERVER_T *tcp_serv = tcp_server_init(spriv);
+    TCP_SERVER_T *tcp_serv = tcp_server_init(spriv, MAX_JSON_CONNECTIONS);
 
     err_t err = tcp_server_open(tcp_serv, port,
                         tcp_server_json_recv,

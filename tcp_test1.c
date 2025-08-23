@@ -145,7 +145,7 @@ err_t tcp_server_sent(void *arg, struct tcp_pcb *tpcb, u16_t len) {
 
 err_t tcp_server_sendtest_init_open(uint16_t port,
                                complete_callback completed_callback) {
-    TCP_SERVER_T *tcp_serv = tcp_server_init(NULL);
+    TCP_SERVER_T *tcp_serv = tcp_server_init(NULL, MAX_TCPTEST1_CONNECTIONS);
 
     err_t err = tcp_server_open(tcp_serv, port,
                                 tcp_server_recv,

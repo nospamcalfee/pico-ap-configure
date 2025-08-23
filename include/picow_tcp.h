@@ -41,11 +41,8 @@ struct server_per_client {
     int sent_len;   //amount sent so far
     // bool busy;   //true until completed is called, when false can be reused
 };
-// fixme - needs to be created on an accept, so multiple accepts will work.
 // mulitple protocols may need different max connections. must be set at init time.
-#ifndef MAX_CONNECTIONS
-#define MAX_CONNECTIONS 2
-#endif
+#define MAX_TCPTEST1_CONNECTIONS 2
 // Created on an accept, so multiple accepts will work.
 typedef struct TCP_SERVER_T_ {
     struct tcp_pcb *server_pcb;
@@ -57,7 +54,8 @@ typedef struct TCP_SERVER_T_ {
     tcp_poll_fn user_poll; // function when send is delayed
     tcp_send_fn user_accept;    //function called when new client is accepted
     void *priv; //for user tcp data and ptrs
-    struct server_per_client per_accept[MAX_CONNECTIONS];
+    int max_connections;    //number of allocations create by init (below)
+    struct server_per_client *per_accept; //pointer to per_client array
 } TCP_SERVER_T;
 
 typedef struct TCP_CLIENT_T_ {
@@ -84,8 +82,8 @@ typedef struct TCP_CLIENT_T_ {
     void *priv; //for user tcp data and ptrs
 } TCP_CLIENT_T;
 
-
-TCP_SERVER_T* tcp_server_init(void *priv);
+#define PER_SERVER_ALIGNED_SIZE ((sizeof(int) - sizeof(struct server_per_client) & 0x3) + sizeof(struct server_per_client))
+TCP_SERVER_T* tcp_server_init(void *priv, int max_connections);
 TCP_CLIENT_T* tcp_client_init(void *priv);
 err_t tcp_server_open(TCP_SERVER_T *state, uint16_t port, tcp_recv_fn recv,
                         tcp_sent_fn sent,
