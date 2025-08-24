@@ -15,7 +15,7 @@
 
 #define DEBUG_printf printf
 //fixme BUF_SIZE needs to be per protocol!
-#define BUF_SIZE 2048
+#define TEST1_BUF_SIZE 2048
 
 //user function to send data
 typedef err_t (*tcp_send_fn)(void *arg, struct tcp_pcb *tpcb);
@@ -29,8 +29,8 @@ struct TCP_SERVER_T_; //forward reference
 struct server_per_client {
     struct TCP_SERVER_T_ *parent; //pointer back to server data
     struct tcp_pcb *client_pcb; //unused slot if NULL here
-    uint8_t buffer_sent[BUF_SIZE]; //these are very protocol specific
-    uint8_t buffer_recv[BUF_SIZE];
+    uint8_t buffer_sent[TEST1_BUF_SIZE]; //these are very protocol specific
+    uint8_t buffer_recv[TEST1_BUF_SIZE];
 
     err_t status; //last error return
     int recv_size;  //size expected from user info

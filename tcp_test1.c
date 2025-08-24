@@ -46,17 +46,17 @@ static err_t tcp_server_send_data(void *arg, struct tcp_pcb *tpcb)
     struct server_per_client *per_client = (struct server_per_client *)arg;
     //fixme this could be moved to a separate function.
     //fixme as now, it rebuilds the buffer on send retries
-    for(int i=0; i< BUF_SIZE; i++) {
+    for(int i=0; i< TEST1_BUF_SIZE; i++) {
         per_client->buffer_sent[i] = rand();
     }
 
     per_client->sent_len = 0;
-    DEBUG_printf("tcp_server_send_data writing %ld\n", BUF_SIZE);
+    DEBUG_printf("tcp_server_send_data writing %ld\n", TEST1_BUF_SIZE);
     // this method is callback from lwIP, so cyw43_arch_lwip_begin is not required, however you
     // can use this method to cause an assertion in debug mode, if this method is called when
     // cyw43_arch_lwip_begin IS needed
     cyw43_arch_lwip_check();
-    err_t err = tcp_write(tpcb, per_client->buffer_sent, BUF_SIZE, TCP_WRITE_FLAG_COPY);
+    err_t err = tcp_write(tpcb, per_client->buffer_sent, TEST1_BUF_SIZE, TCP_WRITE_FLAG_COPY);
     if (err != ERR_OK) {
         DEBUG_printf("tcp_server_send_data Failed to write data %d\n", err);
         per_client->status = err;
@@ -88,7 +88,7 @@ static err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, er
             DEBUG_printf("tcp_server_recv %d/%d err %d\n", p->tot_len, per_client->recv_len, err);
 
             // Receive the buffer
-            const uint16_t buffer_left = BUF_SIZE - per_client->recv_len;
+            const uint16_t buffer_left = TEST1_BUF_SIZE - per_client->recv_len;
             per_client->recv_len += pbuf_copy_partial(p, per_client->buffer_recv + per_client->recv_len,
                                                  p->tot_len > buffer_left ? buffer_left : p->tot_len, 0);
             tcp_recved(tpcb, p->tot_len);
@@ -96,10 +96,10 @@ static err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, er
         pbuf_free(p);
 
         // Have we have received the whole buffer
-        if (per_client->recv_len == BUF_SIZE) {
+        if (per_client->recv_len == TEST1_BUF_SIZE) {
 
             // check it matches
-            if (memcmp(per_client->buffer_sent, per_client->buffer_recv, BUF_SIZE) != 0) {
+            if (memcmp(per_client->buffer_sent, per_client->buffer_recv, TEST1_BUF_SIZE) != 0) {
                 DEBUG_printf("buffer mismatch\n");
                 return tcp_server_result(per_client, ERR_USER);
             }
@@ -126,7 +126,7 @@ err_t tcp_server_sent(void *arg, struct tcp_pcb *tpcb, u16_t len) {
     DEBUG_printf("tcp_server_sent %u\n", len);
     per_client->sent_len += len;
 
-    if (per_client->sent_len >= BUF_SIZE) {
+    if (per_client->sent_len >= TEST1_BUF_SIZE) {
 
         // We should get the data back from the client
         per_client->recv_len = 0;
@@ -188,7 +188,7 @@ static void dump_bytes(const uint8_t *bptr, uint32_t len) {
 static err_t tcp_client_sending(void *arg, struct tcp_pcb *pcb) {
     TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
     // If we have received the whole buffer, send it back to the server
-    if (state->recv_len == BUF_SIZE) {
+    if (state->recv_len == TEST1_BUF_SIZE) {
         DEBUG_printf("tcp_client_sending %d bytes to server\n", state->recv_len);
         err_t err = tcp_write(pcb, state->buffer, state->recv_len, TCP_WRITE_FLAG_COPY);
         if (err != ERR_OK) {
@@ -217,7 +217,7 @@ static err_t tcp_client_sent(void *arg, struct tcp_pcb *tpcb, u16_t len) {
     DEBUG_printf("tcp_client_sent %u\n", len);
     state->sent_len += len;
 
-    if (state->sent_len >= BUF_SIZE) {
+    if (state->sent_len >= TEST1_BUF_SIZE) {
 
         state->count++;
         if (state->count >= TEST_ITERATIONS) {
@@ -249,7 +249,7 @@ static err_t tcp_client_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, er
             DUMP_BYTES(q->payload, q->len);
         }
         // Receive the buffer
-        const uint16_t buffer_left = BUF_SIZE - state->recv_len;
+        const uint16_t buffer_left = TEST1_BUF_SIZE - state->recv_len;
         state->recv_len += pbuf_copy_partial(p, state->buffer + state->recv_len,
                                                p->tot_len > buffer_left ? buffer_left : p->tot_len, 0);
         tcp_recved(tpcb, p->tot_len);
@@ -274,7 +274,7 @@ static void tcp_client_complete(void *arg, int status) {
 /* every client protocol will have a custom open call.
    The mainloop only knows to start it up, every so often.
 */
-static uint8_t test1_buffer[BUF_SIZE];
+static uint8_t test1_buffer[TEST1_BUF_SIZE];
 static int fail_count;
 static TCP_CLIENT_T *state;
 
