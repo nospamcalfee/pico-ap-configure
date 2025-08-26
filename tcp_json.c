@@ -56,7 +56,6 @@ static void json_dump_hdr(struct tcp_json_header *hdr) {
 static err_t tcp_server_json_send(void *arg, struct tcp_pcb *tpcb)
 {
     struct server_per_client *per_client = (struct server_per_client *)arg;
-    // struct tcp_json_priv *json_priv = per_client->priv;
 
     per_client->sent_len = 0;
     DEBUG_printf("tcp_server_json_send writing %ld\n", per_client->send_size);
@@ -64,7 +63,7 @@ static err_t tcp_server_json_send(void *arg, struct tcp_pcb *tpcb)
     // can use this method to cause an assertion in debug mode, if this method is called when
     // cyw43_arch_lwip_begin IS needed
     cyw43_arch_lwip_check();
-    err_t err = tcp_write(tpcb, per_client->buffer_sent, per_client->send_size, TCP_WRITE_FLAG_COPY);
+    err_t err = tcp_write(tpcb, per_client->per_client_s_buffer, per_client->send_size, TCP_WRITE_FLAG_COPY);
     if (err != ERR_OK) {
         DEBUG_printf("tcp_server_json_send Failed to write data %d\n", err);
         per_client->status = err;
@@ -89,6 +88,7 @@ static err_t tcp_server_json_accept(void *arg, struct tcp_pcb *tpcb)
     per_client->recv_size = MAX_JSON_BUF_SIZE; // set maximum recv
     per_client->send_size = 0;
     per_client->recv_flag = 0;  //clear header recieved flag
+    DEBUG_printf("tcp_server_json_accept\n");
     return ERR_OK;
 #endif
 }
@@ -115,6 +115,7 @@ static err_t tcp_server_json_sent(void *arg, struct tcp_pcb *tpcb, u16_t len) {
  */
 static err_t tcp_server_json_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err) {
     struct server_per_client *per_client = (struct server_per_client *)arg;
+    DEBUG_printf("tcp_server_json_recv entry %d\n", err);
     if ((err == ERR_OK || err == ERR_ABRT) && p == NULL) {
         // //remote client closed the connections, free up client stuff
         return tcp_server_result(per_client, err);
@@ -122,7 +123,7 @@ static err_t tcp_server_json_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *
 
     if ((err == ERR_OK || err == ERR_ABRT) && p != NULL) {
         //this callback means we have some data from the client
-        struct tcp_json_header *json_binary = (struct tcp_json_header *)per_client->buffer_recv;
+        struct tcp_json_header *json_binary = (struct tcp_json_header *)per_client->per_client_r_buffer;
 
         // this method is callback from lwIP, so cyw43_arch_lwip_begin is not required, however you
         // can use this method to cause an assertion in debug mode, if this method is called when
@@ -134,7 +135,7 @@ static err_t tcp_server_json_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *
             // Receive the buffer
             const uint16_t buffer_left = MAX_JSON_BUF_SIZE - per_client->recv_len;
             //fixme buffer_recv and buffer_send should be external buffers with external sizes.
-            int this_len = pbuf_copy_partial(p, per_client->buffer_recv + per_client->recv_len,
+            int this_len = pbuf_copy_partial(p, per_client->per_client_r_buffer + per_client->recv_len,
                                                  p->tot_len > buffer_left ? buffer_left : p->tot_len, 0);
             per_client->recv_len += this_len;
             if (per_client->recv_flag == 0 &&
@@ -154,8 +155,8 @@ static err_t tcp_server_json_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *
             // when we have the clients data if it is older return my entire json
             DEBUG_printf("tcp_server_json_recv buffer ok\n");
 
-            per_client->send_size = tcp_server_json_check_freshness(json_binary->size);
-            if (per_client->send_size == 0) {
+            per_client->send_size = tcp_server_json_check_freshness(json_binary);
+            if (per_client->send_size < 0) {
                 //some data error, abort connection
                 return tcp_server_result(per_client, ERR_USER);
             }
@@ -305,8 +306,8 @@ static void json_client_complete(void *arg, int status) {
    The mainloop only knows to start it up, every so often.
 */
 
+uint8_t json_buffer[MAX_JSON_BUF_SIZE]; //fixme yet another buffer, isn't there one in state?
 bool tcp_client_json_init_open(const char *hostname, uint16_t port, struct tcp_json_header *mypriv) {
-    static uint8_t json_buffer[MAX_JSON_BUF_SIZE]; //fixme yet another buffer, isn't there one in state?
     static int fail_count;
     static TCP_CLIENT_T *json_state; //need permanent storage, but not reentrant!
     json_state = tcp_client_init(mypriv);
@@ -337,6 +338,8 @@ err_t tcp_server_json_init_open(uint16_t port,
     TCP_SERVER_T *tcp_serv = tcp_server_init(spriv, MAX_JSON_CONNECTIONS);
 
     err_t err = tcp_server_open(tcp_serv, port,
+                        json_buffer,    //only used during xfer or recieve
+                        json_buffer,    //only used during xfer or recieve
                         tcp_server_json_recv,
                         tcp_server_json_sent,
                         tcp_server_json_send,

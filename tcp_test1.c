@@ -47,7 +47,7 @@ static err_t tcp_server_send_data(void *arg, struct tcp_pcb *tpcb)
     //fixme this could be moved to a separate function.
     //fixme as now, it rebuilds the buffer on send retries
     for(int i=0; i< TEST1_BUF_SIZE; i++) {
-        per_client->buffer_sent[i] = rand();
+        per_client->per_client_s_buffer[i] = rand();
     }
 
     per_client->sent_len = 0;
@@ -56,7 +56,7 @@ static err_t tcp_server_send_data(void *arg, struct tcp_pcb *tpcb)
     // can use this method to cause an assertion in debug mode, if this method is called when
     // cyw43_arch_lwip_begin IS needed
     cyw43_arch_lwip_check();
-    err_t err = tcp_write(tpcb, per_client->buffer_sent, TEST1_BUF_SIZE, TCP_WRITE_FLAG_COPY);
+    err_t err = tcp_write(tpcb, per_client->per_client_s_buffer, TEST1_BUF_SIZE, TCP_WRITE_FLAG_COPY);
     if (err != ERR_OK) {
         DEBUG_printf("tcp_server_send_data Failed to write data %d\n", err);
         per_client->status = err;
@@ -89,7 +89,7 @@ static err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, er
 
             // Receive the buffer
             const uint16_t buffer_left = TEST1_BUF_SIZE - per_client->recv_len;
-            per_client->recv_len += pbuf_copy_partial(p, per_client->buffer_recv + per_client->recv_len,
+            per_client->recv_len += pbuf_copy_partial(p, per_client->per_client_r_buffer + per_client->recv_len,
                                                  p->tot_len > buffer_left ? buffer_left : p->tot_len, 0);
             tcp_recved(tpcb, p->tot_len);
         }
@@ -99,7 +99,7 @@ static err_t tcp_server_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, er
         if (per_client->recv_len == TEST1_BUF_SIZE) {
 
             // check it matches
-            if (memcmp(per_client->buffer_sent, per_client->buffer_recv, TEST1_BUF_SIZE) != 0) {
+            if (memcmp(per_client->per_client_s_buffer, per_client->per_client_r_buffer, TEST1_BUF_SIZE) != 0) {
                 DEBUG_printf("buffer mismatch\n");
                 return tcp_server_result(per_client, ERR_USER);
             }
@@ -135,7 +135,8 @@ err_t tcp_server_sent(void *arg, struct tcp_pcb *tpcb, u16_t len) {
 
     return ERR_OK;
 }
-
+static uint8_t buffer_sent[TEST1_BUF_SIZE]; //these are very protocol specific
+static uint8_t buffer_recv[TEST1_BUF_SIZE];
 /* every client protocol will have a custom open call.
    The mainloop only knows to start it up, every so often.
 
@@ -148,6 +149,8 @@ err_t tcp_server_sendtest_init_open(uint16_t port,
     TCP_SERVER_T *tcp_serv = tcp_server_init(NULL, MAX_TCPTEST1_CONNECTIONS);
 
     err_t err = tcp_server_open(tcp_serv, port,
+                                buffer_recv,
+                                buffer_sent,
                                 tcp_server_recv,
                                 tcp_server_sent,
                                 tcp_server_send_data,

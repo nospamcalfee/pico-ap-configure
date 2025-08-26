@@ -50,10 +50,11 @@
 #define JSON_PROTOCOL_VERSION 1
 #define JSON_DATA_VERSION 1
 #define MAX_JSON_BUF_SIZE 2048
+#define TEST1_PORT 4242
 #define JSON_PORT 4243
 
 struct tcp_json_header {
-    uint16_t protocol_version;
+    uint32_t protocol_version;
     uint32_t size;
     uint32_t data_version;
 };
@@ -69,4 +70,9 @@ bool tcp_client_json_init_open(const char *hostname, uint16_t port,
 err_t tcp_server_json_init_open(uint16_t port,
                                complete_callback completed_callback,
                                struct tcp_json_header *spriv);
+// return local counter value, -1 if json failure
+// also preps the json buffer with a header
+// json value ranges from 0 to maxint
+int json_prep_get_counter_value();
+
 #endif

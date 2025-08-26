@@ -53,12 +53,14 @@ void print_mirror(cJSON *ptr) {
     free(json_string);
     }
 }
-
-static int json_get_counter_value()
+// return local counter value, -1 if json failure
+// also preps the json buffer with a header
+// json value ranges from 0 to maxint
+int json_prep_get_counter_value()
 {
     cJSON *mptr = get_mirror();
     if (mptr == NULL) {
-        return false; //mirror problem, about update
+        return -1; //mirror problem, about update
     }
     struct tcp_json_header *hptr = (struct tcp_json_header *)json_buffer;
     uint8_t *jptr = json_buffer + sizeof(*hptr);
@@ -86,12 +88,12 @@ static int json_get_counter_value()
 
         return count;   //return some non-zero version of my json
     }
-    return jready; //let caller know if it started.
+    return -1; //let caller know json is borked
 }
 bool tcp_client_json_update_buddy(const char *hostname)
 {
     bool jready = 0;
-    if(json_get_counter_value() > 0) {
+    if(json_prep_get_counter_value() > 0) {
         struct tcp_json_header *hptr = (struct tcp_json_header *)json_buffer;
         jready = tcp_client_json_init_open(hostname, JSON_PORT, hptr);
     }
@@ -103,7 +105,7 @@ void tcp_client_json_handle_reply(int size, uint8_t *buffer) {
     if (size <= sizeof(*hptr)) {
         return; //server agrees my data is freshest;
     }
-    int my_counter = json_get_counter_value();
+    int my_counter = json_prep_get_counter_value();
 
     if (my_counter == 0){
         return;  //this a cjson error exit
@@ -125,17 +127,17 @@ void tcp_client_json_handle_reply(int size, uint8_t *buffer) {
 
 //If the local json has a higher version counter, send header and json
 //otherwise just send the header.
-int tcp_server_json_check_freshness(int ver_counter) {
-    struct tcp_json_header *hptr = (struct tcp_json_header *)json_buffer;
+int tcp_server_json_check_freshness(struct tcp_json_header *hptr) {
+    // struct tcp_json_header *hptr = (struct tcp_json_header *)json_buffer;
     //json_get_counter_value inits the header to send everything, hdr and json
-    int my_counter = json_get_counter_value();
+    int my_counter = json_prep_get_counter_value();
 
-    if (my_counter == 0){
+    if (my_counter < 0){
         return my_counter;  //this a cjson error exit
     }
-    if (my_counter <= ver_counter) {
+    if (my_counter > hptr->data_version) {
         //I need to send to the client just the header, not json data
-        printf("my data version: %d his version %d I accept client\n", my_counter, ver_counter);
+        printf("my data version: %d his version %d I accept client\n", my_counter, hptr->data_version);
         hptr->size = sizeof(*hptr);
     }
     return hptr->size;

@@ -27,6 +27,7 @@ TCP_SERVER_T* tcp_server_init(void *priv, int max_connections) {
     state->priv = priv; //keep ptr to users data
     state->max_connections = max_connections;
     //intended never to be freed, free fragments memory
+    //does not help with buffer reuse, user must handle send/receive buffers
     state->per_accept = calloc(1, PER_SERVER_ALIGNED_SIZE * max_connections);
     if (state->per_accept == NULL) {
         DEBUG_printf("tcp_server_init failed to allocate per_accept\n");
@@ -118,6 +119,8 @@ static err_t tcp_server_accept(void *arg, struct tcp_pcb *client_pcb, err_t err)
 
     per_client->parent = server_state;
     per_client->client_pcb = client_pcb;
+    per_client->per_client_r_buffer = server_state->r_buffer;
+    per_client->per_client_s_buffer = server_state->s_buffer;
     tcp_arg(client_pcb, per_client);
     tcp_sent(client_pcb, server_state->user_sent); //tcp_server_sent);
     tcp_recv(client_pcb, server_state->user_recv); //tcp_server_recv);
@@ -130,7 +133,10 @@ static err_t tcp_server_accept(void *arg, struct tcp_pcb *client_pcb, err_t err)
     return server_state->user_accept(per_client, per_client->client_pcb);
 }
 
+//buffers are users, if protocol allows, they can be the same buffer
 err_t tcp_server_open(TCP_SERVER_T *state, uint16_t port,
+                        uint8_t *recv_buffer,
+                        uint8_t *send_buffer,
                         tcp_recv_fn recv,
                         tcp_sent_fn sent,
                         tcp_send_fn user_send,
@@ -147,6 +153,8 @@ err_t tcp_server_open(TCP_SERVER_T *state, uint16_t port,
     state->user_send = user_send;
     state->user_sent = sent;
     state->user_accept = user_accept;
+    state->r_buffer = recv_buffer;
+    state->s_buffer = send_buffer;
     state->completed_callback = complete;
 
     err_t err = tcp_bind(pcb, NULL, port);

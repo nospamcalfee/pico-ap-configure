@@ -26,11 +26,14 @@ typedef void (*complete_callback)(void *state, int status);
 struct TCP_SERVER_T_; //forward reference
 // data required after a client connects multiple simultaneous clients require
 // multiple of these structs limit to some max number to control memory use
+// note buffers are race conditions, must be handled externally by user code for multiple codes.
 struct server_per_client {
     struct TCP_SERVER_T_ *parent; //pointer back to server data
     struct tcp_pcb *client_pcb; //unused slot if NULL here
-    uint8_t buffer_sent[TEST1_BUF_SIZE]; //these are very protocol specific
-    uint8_t buffer_recv[TEST1_BUF_SIZE];
+    uint8_t *per_client_r_buffer; //user ptr for recv
+    uint8_t *per_client_s_buffer; //user ptr for send, can be same as recv depending on protocol
+    // uint8_t buffer_sent[TEST1_BUF_SIZE]; //these are very protocol specific
+    // uint8_t buffer_recv[TEST1_BUF_SIZE];
 
     err_t status; //last error return
     int recv_size;  //size expected from user info
@@ -53,6 +56,9 @@ typedef struct TCP_SERVER_T_ {
     tcp_send_fn user_send; //function to send on socket
     tcp_poll_fn user_poll; // function when send is delayed
     tcp_send_fn user_accept;    //function called when new client is accepted
+    uint8_t *r_buffer; //user ptr for recv
+    uint8_t *s_buffer; //user ptr for send, can be same as recv depending on protocol
+
     void *priv; //for user tcp data and ptrs
     int max_connections;    //number of allocations create by init (below)
     struct server_per_client *per_accept; //pointer to per_client array
@@ -85,7 +91,10 @@ typedef struct TCP_CLIENT_T_ {
 #define PER_SERVER_ALIGNED_SIZE ((sizeof(int) - sizeof(struct server_per_client) & 0x3) + sizeof(struct server_per_client))
 TCP_SERVER_T* tcp_server_init(void *priv, int max_connections);
 TCP_CLIENT_T* tcp_client_init(void *priv);
-err_t tcp_server_open(TCP_SERVER_T *state, uint16_t port, tcp_recv_fn recv,
+err_t tcp_server_open(TCP_SERVER_T *state, uint16_t port,
+                        uint8_t *recv_buffer,
+                        uint8_t *send_buffer,
+                        tcp_recv_fn recv,
                         tcp_sent_fn sent,
                         tcp_send_fn user_send,
                         tcp_send_fn user_accept,
