@@ -6,7 +6,7 @@ I am trying to build a pico-w IOT device. One of the biggest problems is
 initializing a IOT system in a random wifi environment. So my first thought
 was to do a bluetooth interface to set my ssid/password/ip/ipmask and then
 use my local wifi. I implemented a standalone bluetooth project here:
-https://github.com/nospamcalfee/spp_in_out But the downsides is apparently
+https://github.com/nospamcalfee/spp_in_out But the downside is apparently
 apple ios doesn't respond to serial protocol bluetooth (rumor, I have not
 tried this), and the bluetooth build uses lots of flash - 1/4 total which is
 not available for the final app.
@@ -30,7 +30,19 @@ https://github.com/nospamcalfee/pico-ap-configure
    it allows starting while completely nuked, or in a situation when there
    are multiple WIFI ssids, and all are not know via flash for
    ssid/passwords.
+## not quite a release adapt the example tcpserver and tcpclient code so it
+   can build separate from the example code. Also expanded for more flexible
+   protocols over tcp.
 
+   See:.../pico-examples/pico_w/wifi/tcp_server/picow_tcp_server.c
+   and .../pico-examples/pico_w/wifi/tcp_client/picow_tcp_client.c.
+
+   This code expanded both the python test programs for the example test
+   client/server and added a json client/server with python test programs.
+   Don't judge me on the python, it is my first attempt.
+
+   Only when I have 2 picows tossing json both ways will I make a real
+   release.
 ## What this example does
 
 
@@ -179,7 +191,7 @@ ready for a coin or in this case IOT time handling.
 ### developer SNAFU
 
 It is possible to mess up the flash storing ssids/password and names. If you
-absolutely cannot get a system under developement to start or allow
+absolutely cannot get a system under development to start or allow
 configuration as a website, you must nuke all the flash. All "ssids/password
 and names" are stored in a reserved area of flash. Programs under debug do
 not erase or modify this area. So it may be necessary to "nuke" all the flash
