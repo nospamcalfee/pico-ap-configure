@@ -115,7 +115,7 @@ static err_t tcp_server_json_sent(void *arg, struct tcp_pcb *tpcb, u16_t len) {
  */
 static err_t tcp_server_json_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err) {
     struct server_per_client *per_client = (struct server_per_client *)arg;
-    DEBUG_printf("tcp_server_json_recv entry %d\n", err);
+    DEBUG_printf("%s\n",__func__);
     if ((err == ERR_OK || err == ERR_ABRT) && p == NULL) {
         // //remote client closed the connections, free up client stuff
         return tcp_server_result(per_client, err);
@@ -130,7 +130,7 @@ static err_t tcp_server_json_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *
         // cyw43_arch_lwip_begin IS needed
         cyw43_arch_lwip_check();
         if (p->tot_len > 0) {
-            DEBUG_printf("tcp_server_json_recv %d/%d err %d\n", p->tot_len, per_client->recv_len, err);
+            DEBUG_printf("%s %d/%d err %d\n", __func__, p->tot_len, per_client->recv_len, err);
 
             // Receive the buffer
             const uint16_t buffer_left = MAX_JSON_BUF_SIZE - per_client->recv_len;
@@ -153,7 +153,7 @@ static err_t tcp_server_json_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *
         // Have we have received the whole buffer
         if (per_client->recv_len >= per_client->recv_size) {
             // when we have the clients data if it is older return my entire json
-            DEBUG_printf("tcp_server_json_recv buffer ok\n");
+            DEBUG_printf("%s buffer ok\n", __func__);
 
             per_client->send_size = tcp_server_json_check_freshness(json_binary);
             if (per_client->send_size < 0) {
@@ -167,7 +167,7 @@ static err_t tcp_server_json_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *
             return ERR_OK;
         }
     } else {
-        DEBUG_printf("tcp_server_json_recv some funny error condition, still free the pbuf\n");
+        DEBUG_printf("%s some funny error condition, still free the pbuf\n", __func__);
         pbuf_free(p);
     }
     return ERR_OK;
@@ -282,7 +282,7 @@ static err_t json_client_connected(void *arg, struct tcp_pcb *tpcb, err_t err) {
         printf("connect failed %d\n", err);
         return tcp_client_result(arg, err);
     }
-    DEBUG_printf("tcp_client_connected initiate sending to server\n");
+    DEBUG_printf("json_client_connected initiate sending to server\n");
     state->recv_len = 0; //init state variables
     state->sent_len = 0;
     return state->user_sending(state, tpcb);
@@ -338,8 +338,8 @@ err_t tcp_server_json_init_open(uint16_t port,
     TCP_SERVER_T *tcp_serv = tcp_server_init(spriv, MAX_JSON_CONNECTIONS);
 
     err_t err = tcp_server_open(tcp_serv, port,
-                        json_buffer,    //only used during xfer or recieve
-                        json_buffer,    //only used during xfer or recieve
+                        json_buffer,    //only used during xfer or receive
+                        json_buffer,    //only used during xfer or receive
                         tcp_server_json_recv,
                         tcp_server_json_sent,
                         tcp_server_json_send,

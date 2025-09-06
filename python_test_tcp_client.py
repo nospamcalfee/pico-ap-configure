@@ -1,5 +1,6 @@
 #!/usr/bin/python
-
+# to repeatedly invoke in bash:
+# while true; do python3 ../python_test_tcp_client.py  freddy.local; sleep 1;  done
 import socket
 import sys
 

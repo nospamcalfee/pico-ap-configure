@@ -1,5 +1,7 @@
 #!/usr/bin/python
-
+# to invoke once:
+# python3 ../python_json_tcp_client.py freddy.local
+# while true; do python3 ../python_json_tcp_client.py  freddy.local; sleep 1;  done
 import socket
 import sys
 import json
@@ -24,7 +26,7 @@ SERVER_ADDR = sys.argv[1]
 # These constants should match the server
 MAX_JSON_BUF_SIZE = 2048
 SERVER_PORT = 4243
-TEST_ITERATIONS = 2
+TEST_ITERATIONS = 5
 
 # Open socket to the server
 sock = socket.socket()
@@ -40,8 +42,6 @@ for test_iteration in range(TEST_ITERATIONS):
     print(jsonstring)
     protocol_version = (1).to_bytes(4, byteorder='little')
     size_holder = (0).to_bytes(4, byteorder='little')
-    upcount = jsondata['update_count'].to_bytes(4, byteorder='little')
-    print( upcount.hex())
     data_version = jsondata['update_count'].to_bytes(4, byteorder='little')
     print('my data_version %d' % jsondata['update_count'])
 

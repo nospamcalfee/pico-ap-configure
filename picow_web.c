@@ -282,7 +282,7 @@ int main() {
         if (!tcp_client_sendtest_init_open("jedediah.local", TEST1_PORT, NULL)) {
             printf("test1 client connection was busy, could not open\n");
         }
-        if (!tcp_client_json_init_open("jedediah.local", JSON_PORT, NULL)) {
+        if (!tcp_client_json_update_buddy("jedediah.local")) {
             printf("json client connection was busy, could not open\n");
         }
         sleep_ms(9000);

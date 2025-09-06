@@ -4,8 +4,18 @@
 #include <ssi.h>
 #include "json_handler.h"
 #include "tcp_json.h"
+/*
+ * The system needs 2 copies of the json.
 
-cJSON *mirror; // global containing system json
+ * One copy is an ascii version, always json is transfered as ascii. Ascii is
+ * usually a transfer buffer received from a sender or built from the local
+ * mirror on xmit.
+
+ * The mirror contains a parsed version of the ascii json. If a parse from
+ * some weird xfer fails, null the mirror pointer, so it will be inited with
+ * a very small update count.
+ */
+cJSON *mirror; // global containing system json binary data
 
 // return the current mirror or create if it does not exist
 cJSON *get_mirror()
@@ -17,7 +27,7 @@ cJSON *get_mirror()
         mirror = cJSON_CreateObject();
         cJSON_AddItemToObject(mirror, "json_version",
                               cJSON_CreateString(LATEST_JSON_VERSION));
-        cJSON_AddNumberToObject(mirror, "update_count", 0);
+        cJSON_AddNumberToObject(mirror, "update_count", DEFAULT_UPDATE_COUNT);
         cJSON_AddItemToObject(mirror, "server_version",
                               cJSON_CreateString(LATEST_VERSION));
         // if (gethostname(name, sizeof(name))) {
@@ -41,7 +51,15 @@ void inc_counter(cJSON *ptr) {
         cJSON_SetNumberValue(counter, count); //update in the json
     }
 }
-
+//handy utility function
+static int get_mirror_update_count(){
+    cJSON *mptr = get_mirror();
+    cJSON *counter = cJSON_GetObjectItem(mptr, "update_count");
+    if (counter != NULL && cJSON_IsNumber(counter)) {
+        return counter->valueint;
+    }
+    return DEFAULT_UPDATE_COUNT; //something is messed up, return default
+}
 void print_mirror(cJSON *ptr) {
     char *json_string = cJSON_Print(ptr);
     if (json_string == NULL) {
@@ -56,35 +74,33 @@ void print_mirror(cJSON *ptr) {
 // return local counter value, -1 if json failure
 // also preps the json buffer with a header
 // json value ranges from 0 to maxint
-int json_prep_get_counter_value()
+/*
+ * this function prepares a binary buffer for sending using the local mirror
+ * binary. It inits both the binary header and the ascii json data.
+ */
+static int json_prep_get_counter_value(struct tcp_json_header *binary)
 {
     cJSON *mptr = get_mirror();
     if (mptr == NULL) {
-        return -1; //mirror problem, about update
+        return -1; //mirror problem, abort update
     }
-    struct tcp_json_header *hptr = (struct tcp_json_header *)json_buffer;
-    uint8_t *jptr = json_buffer + sizeof(*hptr);
+    struct tcp_json_header *hptr = binary;
+    uint8_t *jptr = (uint8_t *)binary + sizeof(*hptr);
 
     // json string follows an allocation for the binary header
     bool jready = cJSON_PrintPreallocated(mptr,
             jptr,
-            sizeof(json_buffer) - 5 - sizeof(*hptr), /* max size */
+            MAX_JSON_BUF_SIZE - 5 - sizeof(*hptr), /* max size */
             0);
     if (jready) {
         int jlength = strlen(jptr);
         int count;
-        //now update binary header
+        //now update header
         hptr->protocol_version = JSON_PROTOCOL_VERSION;
         hptr->size = jlength + sizeof(*hptr); //header size plus json
-        cJSON *counter = cJSON_GetObjectItem(mptr, "update_count");
-        if (counter != NULL && cJSON_IsNumber(counter)) {
-            count = counter->valueint;
-        } else {
-            count = JSON_DATA_VERSION; //default value
-        }
-
+        count = get_mirror_update_count();
         hptr->data_version = count;
-        printf("data version: %d\n", count);
+        printf("%s data version: %d\n", __func__, count);
 
         return count;   //return some non-zero version of my json
     }
@@ -92,9 +108,9 @@ int json_prep_get_counter_value()
 }
 bool tcp_client_json_update_buddy(const char *hostname)
 {
+    struct tcp_json_header *hptr = (struct tcp_json_header *)json_buffer;
     bool jready = 0;
-    if(json_prep_get_counter_value() > 0) {
-        struct tcp_json_header *hptr = (struct tcp_json_header *)json_buffer;
+    if(json_prep_get_counter_value(hptr) > 0) {
         jready = tcp_client_json_init_open(hostname, JSON_PORT, hptr);
     }
     return jready;
@@ -105,40 +121,39 @@ void tcp_client_json_handle_reply(int size, uint8_t *buffer) {
     if (size <= sizeof(*hptr)) {
         return; //server agrees my data is freshest;
     }
-    int my_counter = json_prep_get_counter_value();
-
-    if (my_counter == 0){
-        return;  //this a cjson error exit
-    }
+    int my_counter = get_mirror_update_count();
     if (my_counter <= hptr->data_version) {
         // I am out of date, use servers version of json.
-        printf("client data version: %d his version %d\n", my_counter, hptr->data_version);
-        cJSON *localmirror = get_mirror();
-        localmirror = cJSON_Parse((const char *)hptr + sizeof(*hptr)); //skip header
-        if (localmirror == NULL) {
-            printf("tcp_client_json_handle_reply could not parse servers json\n");
+        printf("%s client data version: %d his version %d\n", __func__, my_counter, hptr->data_version);
+        get_mirror();
+        mirror = cJSON_Parse((const char *)hptr + sizeof(*hptr)); //skip header
+        if (mirror == NULL) {
+            printf("%s could not parse servers json\n", __func__);
         }
-        hptr->size = sizeof(*hptr);
+        // hptr->size = sizeof(*hptr); //not relevant, not sending anything back
     }
-
 }
 //return number of bytes to send to client. 0 if there is some total error and
 //an abort should be used.
 
 //If the local json has a higher version counter, send header and json
-//otherwise just send the header.
+//otherwise just send the header. Supplied with a transmitted binary buffer
 int tcp_server_json_check_freshness(struct tcp_json_header *hptr) {
     // struct tcp_json_header *hptr = (struct tcp_json_header *)json_buffer;
     //json_get_counter_value inits the header to send everything, hdr and json
-    int my_counter = json_prep_get_counter_value();
-
-    if (my_counter < 0){
-        return my_counter;  //this a cjson error exit
-    }
-    if (my_counter > hptr->data_version) {
-        //I need to send to the client just the header, not json data
-        printf("my data version: %d his version %d I accept client\n", my_counter, hptr->data_version);
+    int my_counter = get_mirror_update_count();
+    if (my_counter < hptr->data_version) {
+        // client has newer version, use his json and I need to send to the
+        // client just the header, not json data
+        printf("%s my data version: %d his version %d I accept client version\n", __func__, my_counter, hptr->data_version);
+        get_mirror();
+        mirror = cJSON_Parse((const char *)hptr + sizeof(*hptr)); //skip header
+        if (mirror == NULL) {
+            printf("%s could not parse servers json\n", __func__);
+        }
         hptr->size = sizeof(*hptr);
+    } else {
+        printf("%s my data version: %d his version %d use my version len=%d\n", __func__, my_counter, hptr->data_version, hptr->size);
     }
     return hptr->size;
 }

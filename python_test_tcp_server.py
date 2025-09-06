@@ -1,5 +1,6 @@
 #!/usr/bin/python
-
+# to invoke on linux
+# python3 ../python_test_tcp_server.py
 import random
 import socket
 
