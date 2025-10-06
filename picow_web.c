@@ -273,6 +273,7 @@ int main() {
     err_open = tcp_server_json_init_open(JSON_PORT, NULL, NULL);
 
     mirror = get_mirror();
+    static int last_update_count;
     // Infinite loop
     while(1) {
         datetime_t t;
@@ -288,8 +289,10 @@ int main() {
         sleep_ms(9000);
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
         sleep_ms(1000);
-        inc_counter(mirror);
-        print_mirror(mirror);
+        if (last_update_count != get_mirror_update_count()) {
+            last_update_count = get_mirror_update_count();
+            print_mirror(mirror);
+        }
         rtc_get_datetime(&t);
         datetime_to_str(datetime_str, sizeof(datetime_str), &t);
 

@@ -12,6 +12,7 @@
         <p>Temp: <!--#temp--> C</p>
         <p>LED is: <!--#led--></p>
         <p>Relays: <!--#relay--></p>
+        <p>update_count: <!--#u_cnt--></p>
         <h2>This tests CGI:</h2>
         <a href="/led.cgi?led=1"><button>LED ON</button></a>
         <a href="/led.cgi?led=0"><button>LED OFF</button></a>

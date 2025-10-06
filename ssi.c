@@ -5,6 +5,7 @@
 #include "pico/util/datetime.h"
 #include "hardware/rtc.h"
 #include "relay_control.h"
+#include "json_handler.h"
 
 #undef C
 #define C(x) #x,
@@ -12,7 +13,7 @@ const char * const application_ssi_tags[] = { RUN_STATE_NAMES };
 #undef C
 
 // SSI tags - tag length limited to 8 bytes by default
-#define TAG_NAMES C(dtime)C(host)C(volt)C(relay)C(temp)C(led)
+#define TAG_NAMES C(dtime)C(host)C(volt)C(relay)C(temp)C(led)C(u_cnt)
 #define C(x) x,
 enum ssi_tag_enum { TAG_NAMES };
 #undef C
@@ -79,6 +80,12 @@ short unsigned int ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       else{
         printed = snprintf(pcInsert, iInsertLen, "OFF");
       }
+    }
+    break;
+  case u_cnt:
+    {
+      inc_mirror_counter(mirror);
+      printed = snprintf(pcInsert, iInsertLen, "%d", get_mirror_update_count());
     }
     break;
   default:

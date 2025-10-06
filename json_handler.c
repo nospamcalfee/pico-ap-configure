@@ -44,7 +44,7 @@ cJSON *get_mirror()
     }
     return mirror;
 }
-void inc_counter(cJSON *ptr) {
+void inc_mirror_counter(cJSON *ptr) {
     cJSON *counter = cJSON_GetObjectItem(ptr, "update_count");
     if (counter != NULL && cJSON_IsNumber(counter)) {
         int count = counter->valueint + 1;
@@ -52,7 +52,7 @@ void inc_counter(cJSON *ptr) {
     }
 }
 //handy utility function
-static int get_mirror_update_count(){
+int get_mirror_update_count(){
     cJSON *mptr = get_mirror();
     cJSON *counter = cJSON_GetObjectItem(mptr, "update_count");
     if (counter != NULL && cJSON_IsNumber(counter)) {

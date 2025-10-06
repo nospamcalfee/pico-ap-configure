@@ -295,7 +295,7 @@ static err_t json_client_connected(void *arg, struct tcp_pcb *tpcb, err_t err) {
 static void json_client_complete(void *arg, int status) {
     TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
     (void) status; //ignore status
-    DEBUG_printf("json_client_complete\n");
+    // DEBUG_printf("json_client_complete\n");
 
     //fixme embedded guys hate free - it causes fragmentation. ALternative is
     //to reuse the allocated memory.

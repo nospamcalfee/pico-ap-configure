@@ -28,11 +28,13 @@ https://github.com/nospamcalfee/pico-ap-configure
 ## Release 1.1 - fix embarrassing failure to start on an un-initialized picow.
    It was not possible to start up and choose some wifi ap to connect to. Now
    it allows starting while completely nuked, or in a situation when there
-   are multiple WIFI ssids, and all are not know via flash for
+   are multiple WIFI ssids, and all are not known via flash for
    ssid/passwords.
-## not quite a release adapt the example tcpserver and tcpclient code so it
-   can build separate from the example code. Also expanded for more flexible
-   protocols over tcp.
+## not quite a release
+
+   adapt the example tcpserver and tcpclient code so it can build separately
+   from the example code. Also expanded for more flexible protocols over
+   tcp.
 
    See:.../pico-examples/pico_w/wifi/tcp_server/picow_tcp_server.c
    and .../pico-examples/pico_w/wifi/tcp_client/picow_tcp_client.c.

@@ -267,7 +267,7 @@ static err_t tcp_client_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, er
 static void tcp_client_complete(void *arg, int status) {
     TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
     (void) status; //ignore status
-    DEBUG_printf("tcp_client_complete\n");
+    // DEBUG_printf("tcp_client_complete\n");
 
     //fixme embedded guys hate free - it causes fragmentation. ALternative is
     //to reuse the allocated memory.

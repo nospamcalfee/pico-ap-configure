@@ -12,7 +12,8 @@ extern cJSON *mirror; // global containing system json
 // return the current mirror or create if it does not exist
 cJSON *get_mirror();
 
-void inc_counter(cJSON *ptr);
+void inc_mirror_counter(cJSON *ptr);
+int get_mirror_update_count();
 
 void print_mirror(cJSON *ptr);
 

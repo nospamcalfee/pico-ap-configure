@@ -46,7 +46,7 @@ static void dump_bytes(const uint8_t *bptr, uint32_t len) {
 static err_t tcp_client_close(void *arg) {
     TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
     err_t err = ERR_OK;
-    DEBUG_printf("tcp_client_close %p\n", state->tcp_pcb);
+    // DEBUG_printf("tcp_client_close %p\n", state->tcp_pcb);
     if (state->tcp_pcb != NULL) {
         tcp_arg(state->tcp_pcb, NULL);
         tcp_poll(state->tcp_pcb, NULL, 0);
@@ -124,8 +124,9 @@ static void client_request_common(void *arg) {
     cyw43_arch_lwip_begin();
     err_t err = tcp_connect(state->tcp_pcb, &state->remote_addr, state->port, state->client_connected_callback);
     cyw43_arch_lwip_end();
-    printf("connect stat = %d\n", err);
-
+    if (err) {
+        printf("connect stat = %d\n", err);
+    }
     return;
 }
 
@@ -134,7 +135,7 @@ static void dns_found(const char *hostname, const ip_addr_t *ipaddr, void *arg) 
     TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
     if (ipaddr != NULL) {
         state->remote_addr = *ipaddr;
-        printf("dns address %s\n", ipaddr_ntoa(ipaddr));
+        // printf("dns address %s\n", ipaddr_ntoa(ipaddr));
         client_request_common(state);
     } else {
         printf("dns request failed\n");
