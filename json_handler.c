@@ -78,7 +78,7 @@ void print_mirror(cJSON *ptr) {
  * this function prepares a binary buffer for sending using the local mirror
  * binary. It inits both the binary header and the ascii json data.
  */
-static int json_prep_get_counter_value(struct tcp_json_header *binary)
+int json_prep_get_counter_value(struct tcp_json_header *binary)
 {
     cJSON *mptr = get_mirror();
     if (mptr == NULL) {
@@ -110,7 +110,7 @@ bool tcp_client_json_update_buddy(const char *hostname)
 {
     struct tcp_json_header *hptr = (struct tcp_json_header *)json_buffer;
     bool jready = 0;
-    if(json_prep_get_counter_value(hptr) > 0) {
+    if (json_prep_get_counter_value(hptr) > 0) {
         jready = tcp_client_json_init_open(hostname, JSON_PORT, hptr);
     }
     return jready;
@@ -118,6 +118,7 @@ bool tcp_client_json_update_buddy(const char *hostname)
 // when we have a new buffer, if it is "fresher" update the local json
 void tcp_client_json_handle_reply(int size, uint8_t *buffer) {
     struct tcp_json_header *hptr = (struct tcp_json_header *)buffer;
+    printf("%s size: %d his version %d\n", __func__, size, hptr->data_version);
     if (size <= sizeof(*hptr)) {
         return; //server agrees my data is freshest;
     }
@@ -142,7 +143,7 @@ int tcp_server_json_check_freshness(struct tcp_json_header *hptr) {
     // struct tcp_json_header *hptr = (struct tcp_json_header *)json_buffer;
     //json_get_counter_value inits the header to send everything, hdr and json
     int my_counter = get_mirror_update_count();
-    if (my_counter < hptr->data_version) {
+    if (my_counter <= hptr->data_version) {
         // client has newer version, use his json and I need to send to the
         // client just the header, not json data
         printf("%s my data version: %d his version %d I accept client version\n", __func__, my_counter, hptr->data_version);
@@ -154,6 +155,7 @@ int tcp_server_json_check_freshness(struct tcp_json_header *hptr) {
         hptr->size = sizeof(*hptr);
     } else {
         printf("%s my data version: %d his version %d use my version len=%d\n", __func__, my_counter, hptr->data_version, hptr->size);
+        hptr->size = sizeof(*hptr) + 10; //flag big value as a need to send local json
     }
     return hptr->size;
 }

@@ -5,7 +5,7 @@
 
 #define LATEST_VERSION "1.0"
 #define LATEST_JSON_VERSION "1.0"
-#define DEFAULT_UPDATE_COUNT 0
+#define DEFAULT_UPDATE_COUNT 1
 
 extern cJSON *mirror; // global containing system json
 
@@ -23,5 +23,6 @@ int tcp_server_json_check_freshness(struct tcp_json_header *hptr);
 void tcp_client_json_handle_reply(int size, uint8_t *buffer);
 // true when connection is inited
 bool tcp_client_json_update_buddy(const char *hostname);
+int json_prep_get_counter_value(struct tcp_json_header *binary);
 
 #endif
