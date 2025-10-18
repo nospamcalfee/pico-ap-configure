@@ -25,20 +25,20 @@ cJSON *get_mirror()
         printf("Creating json file\n");
         char name[64];
         mirror = cJSON_CreateObject();
+        cJSON *buddy_array = NULL;
         cJSON_AddItemToObject(mirror, "json_version",
                               cJSON_CreateString(LATEST_JSON_VERSION));
         cJSON_AddNumberToObject(mirror, "update_count", DEFAULT_UPDATE_COUNT);
         cJSON_AddItemToObject(mirror, "server_version",
                               cJSON_CreateString(LATEST_VERSION));
-        // if (gethostname(name, sizeof(name))) {
-        //     /* failed? set default */
-        //     strcpy(name, "localhost");
-        // }
+        buddy_array = cJSON_CreateArray();
+        cJSON_AddItemToObject(mirror, "buddy_ip", buddy_array);
+
         strcpy(name, local_host_name); //get my name
         /* add .local and port here */
         strncat(name, ".local", sizeof(name) - strlen(name) - strlen(".local"));
+        cJSON_AddItemToArray(buddy_array, cJSON_CreateString("jedediah.local"));
         cJSON_AddItemToObject(mirror, "server_ip", cJSON_CreateString(name));
-        cJSON_AddItemToObject(mirror, "buddy_ip", cJSON_CreateString(name));
         cJSON_AddItemToObject(mirror, "well_delay", cJSON_CreateString("1"));
         cJSON_AddItemToObject(mirror, "skip_days", cJSON_CreateString("0"));
     }
@@ -111,7 +111,13 @@ bool tcp_client_json_update_buddy(const char *hostname)
     struct tcp_json_header *hptr = (struct tcp_json_header *)json_buffer;
     bool jready = 0;
     if (json_prep_get_counter_value(hptr) > 0) {
-        jready = tcp_client_json_init_open(hostname, JSON_PORT, hptr);
+        const cJSON *buddy = NULL;
+        const cJSON *buddys = NULL;
+        buddys = cJSON_GetObjectItemCaseSensitive(mirror, "buddy_ip");
+        cJSON_ArrayForEach(buddy, buddys) {
+            //fixme skip if my serverip name
+            jready = tcp_client_json_init_open(buddy->valuestring, JSON_PORT, hptr);
+        }
     }
     return jready;
 }

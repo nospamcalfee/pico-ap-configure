@@ -247,6 +247,7 @@ err_t tcp_client_json_sent(void *arg, struct tcp_pcb *tpcb, u16_t len) {
 err_t tcp_client_json_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err) {
     TCP_CLIENT_T *state = (TCP_CLIENT_T*)arg;
     struct tcp_json_header *json_priv = state->priv;
+    printf("%s %p size %d\n", __func__, p, json_priv->size);
     if (!p) {
         return tcp_client_result(arg, ERR_USER);
     }
@@ -317,6 +318,7 @@ uint8_t json_buffer[MAX_JSON_BUF_SIZE]; //fixme yet another buffer, isn't there 
 bool tcp_client_json_init_open(const char *hostname, uint16_t port, struct tcp_json_header *mypriv) {
     static int fail_count;
     static TCP_CLIENT_T *json_state; //need permanent storage, but not reentrant!
+    printf("%s connnect to server %s\n", __func__, hostname);
     json_state = tcp_client_init(mypriv);
 
     if (json_state->busy) {

@@ -15,7 +15,7 @@ jsondata = {
         "update_count": 1,
         "server_version":       "1.0",
         "server_ip":    "freddy.local",
-        "buddy_ip":     "freddy.local",
+        "buddy_ip":     ["freddy.local"],
         "well_delay":   "1",
         "skip_days":    "0"
 }
