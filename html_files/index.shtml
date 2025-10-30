@@ -22,7 +22,11 @@
         <a href="/relay.cgi?relay2=1"><button>RELAY2 ON</button></a>
         <br><br>
         <a href="/index.shtml">Refresh</a>
+        <br><br>
+        <p><!--#json--></p>
         <div>
+        <br><br>
+        <br><br>
             <a href="/config.shtml">Configure Wifi and Hostname</a>
         </div>
    </body>

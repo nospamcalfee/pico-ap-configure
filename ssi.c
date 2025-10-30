@@ -13,7 +13,7 @@ const char * const application_ssi_tags[] = { RUN_STATE_NAMES };
 #undef C
 
 // SSI tags - tag length limited to 8 bytes by default
-#define TAG_NAMES C(dtime)C(host)C(volt)C(relay)C(temp)C(led)C(u_cnt)
+#define TAG_NAMES C(dtime)C(host)C(volt)C(relay)C(temp)C(led)C(u_cnt)C(json)
 #define C(x) x,
 enum ssi_tag_enum { TAG_NAMES };
 #undef C
@@ -24,7 +24,11 @@ static const char * ssi_tags_name[] = { TAG_NAMES };
 char local_host_name[20];
 // const char * ssi_tags[] = {"volt","temp","led", etc};
 
-short unsigned int ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
+short unsigned int ssi_handler(int iIndex, char *pcInsert, int iInsertLen
+#if LWIP_HTTPD_SSI_MULTIPART
+    , uint16_t current_tag_part, uint16_t *next_tag_part
+#endif
+) {
   size_t printed;
   switch (iIndex) {
   case dtime:
@@ -44,7 +48,7 @@ short unsigned int ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
   case volt:
     {
       const float voltage = adc_read() * 3.3f / (1 << 12);
-      printed = snprintf(pcInsert, iInsertLen, "%f", voltage);
+      printed = snprintf(pcInsert, iInsertLen, "%f ins=%p ilen=%d", voltage, pcInsert, iInsertLen);
     }
     break;
   case relay:
@@ -88,7 +92,54 @@ short unsigned int ssi_handler(int iIndex, char *pcInsert, int iInsertLen) {
       printed = snprintf(pcInsert, iInsertLen, "%d", get_mirror_update_count());
     }
     break;
-  default:
+#if LWIP_HTTPD_SSI_MULTIPART
+        //this crazy call assumes the entire iInsertLen buffer will be filled
+        //or an indication of the last buffer is sent.
+        //the sent string does not appear to be inspected.
+        //snprintf is also difficult, it returns the amount it would have printed.
+        case json: {
+            static int remlen;
+            int thischunk;
+            struct tcp_json_header *hptr = (struct tcp_json_header *)json_buffer;
+            uint8_t *jptr = (uint8_t *)hptr + sizeof(*hptr);
+
+            if (current_tag_part == 0){
+                remlen = 0;
+                int good = json_prep_get_counter_value(hptr); //get json ascii
+                if (good >= 0) {
+                    remlen = hptr->size - sizeof(*hptr);
+                }
+            }
+            int sofar = hptr->size - sizeof(*hptr) - remlen; //offset in json buffer
+            printed = snprintf(pcInsert, iInsertLen, "\n|||%d %d xxxx 0123456789 is a big old data json chunk %d|||", sofar, remlen, current_tag_part);
+            if (printed < 0) {
+                break; //should not happen
+            } else if (printed >= iInsertLen) {
+                //truncated, but some was sent, should not happen here
+            } else {
+                //fit, print some more
+                thischunk = iInsertLen - printed;
+                // if (thischunk > remlen) {
+                //     thischunk = remlen; //only print what is left
+                // }
+            }
+            int lastprinted = printed;
+            printed = snprintf(pcInsert + printed, thischunk, "%s", jptr + sofar);
+            if (printed < 0) {
+                break; //should not happen
+            } else if (printed >= thischunk) {
+                //truncated, but some was sent
+                remlen -= thischunk - 1;
+                *next_tag_part = current_tag_part + 1; //flag we have more to print
+                printed = thischunk + lastprinted - 1; //correct the last section output amount.
+            } else {
+                //Leave "next_tag_part" unchanged to indicate that all data has been returned for this tag
+                printed = printed + lastprinted; //correct the last section output amount.
+            }
+            break;
+        }
+#endif
+   default:
     printed = 0;
     break;
   }
