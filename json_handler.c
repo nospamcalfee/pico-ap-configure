@@ -41,6 +41,9 @@ cJSON *get_mirror()
         cJSON_AddItemToObject(mirror, "server_ip", cJSON_CreateString(name));
         cJSON_AddItemToObject(mirror, "well_delay", cJSON_CreateString("1"));
         cJSON_AddItemToObject(mirror, "skip_days", cJSON_CreateString("0"));
+        cJSON_AddItemToObject(mirror, "junk1", cJSON_CreateString("This is a very long string to test large json sending. 0123456789, 1123456789, 2123456789, 3123456789, 4123456789"));
+        cJSON_AddItemToObject(mirror, "junk2", cJSON_CreateString("This is a very long string to test large json sending. 0123456789, 1123456789, 2123456789, 3123456789, 4123456789"));
+        cJSON_AddItemToObject(mirror, "junk3", cJSON_CreateString("This is a very long string to test large json sending. 0123456789, 1123456789, 2123456789, 3123456789, 4123456789"));
     }
     return mirror;
 }

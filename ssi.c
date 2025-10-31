@@ -93,6 +93,7 @@ short unsigned int ssi_handler(int iIndex, char *pcInsert, int iInsertLen
     }
     break;
 #if LWIP_HTTPD_SSI_MULTIPART
+    #if 0
         //this crazy call assumes the entire iInsertLen buffer will be filled
         //or an indication of the last buffer is sent.
         //the sent string does not appear to be inspected.
@@ -138,6 +139,45 @@ short unsigned int ssi_handler(int iIndex, char *pcInsert, int iInsertLen
             }
             break;
         }
+    #else
+        //now that I supposedly understand the ssi transfer protocol, try it
+        //again without snprintf
+        case json: {
+            int remlen;
+            int thischunk = iInsertLen - 1;
+            //note json_buffer is not reentrant and is racy.
+            struct tcp_json_header *hptr = (struct tcp_json_header *)json_buffer;
+            uint8_t *jptr = (uint8_t *)hptr + sizeof(*hptr);
+
+            if (current_tag_part == 0){
+                remlen = 0;
+                int good = json_prep_get_counter_value(hptr); //get json ascii
+                if (good >= 0) {
+                    remlen = hptr->size - sizeof(*hptr);
+                }
+            } else {
+                remlen = hptr->size - sizeof(*hptr); //total size
+                remlen -= current_tag_part * thischunk; //this entry offset
+            }
+            if (remlen > thischunk) {
+                pcInsert[thischunk] = '\0'; //fixme is this needed?
+            } else {
+                //this is a short chunk
+                thischunk = remlen;
+            }
+            int sofar = hptr->size - sizeof(*hptr) - remlen; //offset in json buffer
+            memcpy(pcInsert, jptr + sofar, thischunk); //copy data to netbuf
+            if (thischunk >= iInsertLen - 1) {
+                //truncated, but some was sent
+                *next_tag_part = current_tag_part + 1; //flag we have more to print
+            } else {
+                //on last, shorter send Leave "next_tag_part" unchanged to
+                //indicate that all data has been returned for this tag
+            }
+            printed = thischunk; //return last section output amount.
+            break;
+        }
+    #endif
 #endif
    default:
     printed = 0;
