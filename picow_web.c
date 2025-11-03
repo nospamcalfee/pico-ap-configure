@@ -269,7 +269,8 @@ int main() {
     cgi_init();
     printf("CGI Handler initialised\n");
     //start the control tcp server
-    err_t err_open = tcp_server_sendtest_init_open(TEST1_PORT, NULL);
+    err_t err_open;
+    err_open = tcp_server_sendtest_init_open(TEST1_PORT, NULL);
     err_open = tcp_server_json_init_open(JSON_PORT, NULL, NULL);
 
     mirror = get_mirror();
@@ -283,15 +284,15 @@ int main() {
         if (!tcp_client_sendtest_init_open("jedediah.local", TEST1_PORT, NULL)) {
             printf("test1 client connection was busy, could not open\n");
         }
-        if (!tcp_client_json_update_buddy("jedediah.local")) {
-            printf("json client connection was busy, could not open\n");
-        }
         sleep_ms(9000);
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
         sleep_ms(1000);
         if (last_update_count != get_mirror_update_count()) {
             last_update_count = get_mirror_update_count();
             print_mirror(mirror);
+            if (!tcp_client_json_update_buddies()) {
+                printf("json client connection was busy, could not open\n");
+            }
         }
         rtc_get_datetime(&t);
         datetime_to_str(datetime_str, sizeof(datetime_str), &t);

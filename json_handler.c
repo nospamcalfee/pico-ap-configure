@@ -16,7 +16,12 @@
  * a very small update count.
  */
 cJSON *mirror; // global containing system json binary data
-
+static void get_localhostname_and_port(char *name_and_port, int maxlen) {
+    strncpy(name_and_port, local_host_name, maxlen); //get my name
+    /* add .local and port here */
+    //fixme add a port number here?
+    strncat(name_and_port, ".local", maxlen - strlen(name_and_port) - strlen(".local"));
+}
 // return the current mirror or create if it does not exist
 cJSON *get_mirror()
 {
@@ -33,11 +38,10 @@ cJSON *get_mirror()
                               cJSON_CreateString(LATEST_VERSION));
         buddy_array = cJSON_CreateArray();
         cJSON_AddItemToObject(mirror, "buddy_ip", buddy_array);
-
-        strcpy(name, local_host_name); //get my name
-        /* add .local and port here */
-        strncat(name, ".local", sizeof(name) - strlen(name) - strlen(".local"));
-        cJSON_AddItemToArray(buddy_array, cJSON_CreateString("jedediah.local"));
+        //change device names to match your test systems:
+        cJSON_AddItemToArray(buddy_array, cJSON_CreateString("george.local"));
+        cJSON_AddItemToArray(buddy_array, cJSON_CreateString("freddy.local"));
+        get_localhostname_and_port(name, sizeof(name));
         cJSON_AddItemToObject(mirror, "server_ip", cJSON_CreateString(name));
         cJSON_AddItemToObject(mirror, "well_delay", cJSON_CreateString("1"));
         cJSON_AddItemToObject(mirror, "skip_days", cJSON_CreateString("0"));
@@ -109,17 +113,21 @@ int json_prep_get_counter_value(struct tcp_json_header *binary)
     }
     return -1; //let caller know json is borked
 }
-bool tcp_client_json_update_buddy(const char *hostname)
+bool tcp_client_json_update_buddies()
 {
     struct tcp_json_header *hptr = (struct tcp_json_header *)json_buffer;
     bool jready = 0;
     if (json_prep_get_counter_value(hptr) > 0) {
+        char name[64];
+        get_localhostname_and_port(name, sizeof(name));
         const cJSON *buddy = NULL;
         const cJSON *buddys = NULL;
         buddys = cJSON_GetObjectItemCaseSensitive(mirror, "buddy_ip");
         cJSON_ArrayForEach(buddy, buddys) {
-            //fixme skip if my serverip name
-            jready = tcp_client_json_init_open(buddy->valuestring, JSON_PORT, hptr);
+            if (strcmp(name, buddy->valuestring)) {
+                //skip if my server name
+                jready = tcp_client_json_init_open(buddy->valuestring, JSON_PORT, hptr);
+            }
         }
     }
     return jready;

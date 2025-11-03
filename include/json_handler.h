@@ -22,7 +22,7 @@ int tcp_server_json_check_freshness(struct tcp_json_header *hptr);
 // when we have a new buffer, if it is "fresher" update the local json
 void tcp_client_json_handle_reply(int size, uint8_t *buffer);
 // true when connection is inited
-bool tcp_client_json_update_buddy(const char *hostname);
+bool tcp_client_json_update_buddies();
 int json_prep_get_counter_value(struct tcp_json_header *binary);
 
 #endif
