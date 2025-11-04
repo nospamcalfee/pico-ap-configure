@@ -30,21 +30,45 @@ https://github.com/nospamcalfee/pico-ap-configure
    it allows starting while completely nuked, or in a situation when there
    are multiple WIFI ssids, and all are not known via flash for
    ssid/passwords.
-## not quite a release
+## Release_2.0
 
    adapt the example tcpserver and tcpclient code so it can build separately
    from the example code. Also expanded for more flexible protocols over
    tcp.
 
    See:.../pico-examples/pico_w/wifi/tcp_server/picow_tcp_server.c
-   and .../pico-examples/pico_w/wifi/tcp_client/picow_tcp_client.c.
+   and .../pico-examples/pico_w/wifi/tcp_client/picow_tcp_client.c. Updated
+   to the local project files with the same name and very similar
+   capabilities. Looking at tcp_json.c and tcp_test1.c will show how to
+   extend the tcp client/server stuff.
 
    This code expanded both the python test programs for the example test
-   client/server and added a json client/server with python test programs.
-   Don't judge me on the python, it is my first attempt.
+   client/server, which I call here test1.
 
-   Only when I have 2 picows tossing json both ways will I make a real
-   release.
+   I further extended the tcp client/server stuff to handle json. I also added
+   python3 scripts to test both the json embedded servers and clients.
+
+   Added a ssi tag to get the server resident json into the html page.
+
+   As a final test of this iot example, every 10 seconds an embedded server
+   will check to see if the json has been updated remotely (or on the web
+   page by any user activity). If a change is seen in the update_count, the
+   noticing picow server will become a client and notify everyone else on the
+   buddies list in the json. All the buddies will see the update and refresh
+   their buddies, but if their update_count is the same as their buddy, they
+   will not update it again. So updates will propagate and stop when everyone
+   is up to date.
+
+   To test the json updating, if you refresh the website on one picow (by doing
+   any server html access), you will see it's update_count. If you have a
+   terminal the other picow will also see the broadcasted update. If no
+   terminal, refreshing the buddy website will show the updated count plus
+   one (for the web refresh), and the other connected buddies will be
+   updated.
+
+# Final release unless a major bug shows up
+   All the necessary iot app infrastructure is done.
+
 ## What this example does
 
 
@@ -102,7 +126,7 @@ a slow AP.
 ### connecting to the pico ap
 
 First the connecting device (phone or pc) must connect to the temporary ap of
-the picow. A unsetup picow will have a fast LED blink rate, about on/off in a
+the picow. A unset up picow will have a fast LED blink rate, about on/off in a
 second. One that has successfully connected to your lan due to an earlier
 setup will have a slow 1 second off then 9 second on flash rate. That is the
 entire UI. In an IOT situation maybe several devices need to be configured,
@@ -131,7 +155,7 @@ configure page.
 If things are all messed up but you can still get to the configure page, you
 can select the "ERASE ALL CONFIG!" button and go back through the whole
 connection stuff again. You will lose all ap/password combos and your
-hostname after this. There is one even more desparate way to recover
+hostname after this. There is one even more desperate way to recover
 see "developer SNAFU" below. That will also require you to reload the picow
 firmware. Not a nice choice but sometimes maybe necessary.
 
